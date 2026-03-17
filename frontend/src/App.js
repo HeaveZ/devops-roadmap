@@ -183,6 +183,7 @@ export default function App() {
           </span>
           <span className="footer-text">PostgreSQL · Frankfurt (EU)</span>
         </div>
+        <div className="created-by">created by HeaveZ :)</div>
       </div>
     </div>
   );
