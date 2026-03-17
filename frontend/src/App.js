@@ -1,166 +1,189 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import "./App.css";
+import React, { useState, useEffect } from 'react';
+import './App.css';
 
-const API_URL = 'https://devops-roadmap-backend.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://devops-roadmap-backend.onrender.com';
 
-const SECTION_ICONS = {
-  "Linux & OS": "🐧",
-  Networking: "🌐",
-  "Git & VCS": "📦",
-  "CI/CD": "🔄",
-  Containers: "🐳",
-  Orchestration: "☸️",
-  Cloud: "☁️",
-  IaC: "🏗️",
-  Monitoring: "📊",
-};
+const SECTIONS_ORDER = [
+  'Linux Temelleri',
+  'Versiyon Kontrolü',
+  'Container & Docker',
+  'CI/CD Pipeline',
+  'Altyapı Otomasyonu (IaC)',
+  'Bulut Platformları',
+  'İzleme & Logging',
+  'Güvenlik (DevSecOps)',
+  'Orkestrasyon',
+];
 
-function App() {
+function getLevelClass(level) {
+  if (!level) return 'temel';
+  const l = level.toLowerCase();
+  if (l.includes('ileri') || l.includes('advanced')) return 'ileri';
+  if (l.includes('orta') || l.includes('intermediate') || l.includes('medium')) return 'orta';
+  return 'temel';
+}
+
+function getLevelLabel(level) {
+  if (!level) return 'Temel';
+  const l = level.toLowerCase();
+  if (l.includes('ileri') || l.includes('advanced')) return 'İleri';
+  if (l.includes('orta') || l.includes('intermediate') || l.includes('medium')) return 'Orta';
+  return 'Temel';
+}
+
+function groupBySection(tasks) {
+  const groups = {};
+  tasks.forEach(task => {
+    const sec = task.section || task.category || 'Genel';
+    if (!groups[sec]) groups[sec] = [];
+    groups[sec].push(task);
+  });
+  return groups;
+}
+
+export default function App() {
   const [tasks, setTasks] = useState([]);
-  const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchTasks();
+    fetch(`${API_URL}/api/tasks`)
+      .then(r => r.json())
+      .then(data => {
+        setTasks(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError('Backend\'e bağlanılamadı. Lütfen tekrar deneyin.');
+        setLoading(false);
+      });
   }, []);
 
-  const fetchTasks = async () => {
-    try {
-      const res = await axios.get(API_URL);
-      setTasks(res.data);
-    } catch (err) {
-      console.error("Görevler yüklenemedi:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleTask = async (id, currentStatus) => {
-    try {
-      const res = await axios.patch(`${API_URL}/${id}`, {
-        completed: !currentStatus,
-      });
-      setTasks((prev) => prev.map((t) => (t.id === id ? res.data : t)));
-    } catch (err) {
-      console.error("Görev güncellenemedi:", err);
-    }
-  };
-
-  const grouped = tasks.reduce((acc, task) => {
-    if (!acc[task.section]) acc[task.section] = [];
-    acc[task.section].push(task);
-    return acc;
-  }, {});
-
-  const filteredGrouped = Object.entries(grouped).reduce(
-    (acc, [section, sectionTasks]) => {
-      const filtered = sectionTasks.filter((t) => {
-        if (filter === "done") return t.completed;
-        if (filter === "todo") return !t.completed;
-        return true;
-      });
-      if (filtered.length > 0) acc[section] = filtered;
-      return acc;
-    },
-    {}
-  );
-
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => t.completed).length;
-  const progress =
-    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-  if (loading) {
-    return (
-      <div className="app">
-        <div className="loading">Yükleniyor...</div>
-      </div>
+  const toggleTask = async (task) => {
+    const updated = tasks.map(t =>
+      t.id === task.id ? { ...t, completed: !t.completed } : t
     );
-  }
+    setTasks(updated);
+    try {
+      await fetch(`${API_URL}/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !task.completed }),
+      });
+    } catch {
+      setTasks(tasks);
+    }
+  };
+
+  const filtered = tasks.filter(t => {
+    if (filter === 'done') return t.completed;
+    if (filter === 'todo') return !t.completed;
+    return true;
+  });
+
+  const grouped = groupBySection(filtered);
+  const doneCount = tasks.filter(t => t.completed).length;
+  const total = tasks.length;
+  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
     <div className="app">
-      <header className="header">
-        <h1>DevOps Roadmap</h1>
-        <p className="subtitle">Adim adim DevOps yolculugun</p>
-      </header>
-
-      <div className="progress-container">
-        <div className="progress-info">
-          <span>Ilerleme</span>
-          <span>
-            {completedTasks} / {totalTasks} gorev ({progress}%)
-          </span>
-        </div>
-        <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-
-      <div className="filter-bar">
-        <button
-          className={filter === "all" ? "active" : ""}
-          onClick={() => setFilter("all")}
-        >
-          Tumu ({totalTasks})
-        </button>
-        <button
-          className={filter === "todo" ? "active" : ""}
-          onClick={() => setFilter("todo")}
-        >
-          Yapilacak ({totalTasks - completedTasks})
-        </button>
-        <button
-          className={filter === "done" ? "active" : ""}
-          onClick={() => setFilter("done")}
-        >
-          Tamamlanan ({completedTasks})
-        </button>
-      </div>
-
-      <div className="sections">
-        {Object.entries(filteredGrouped).map(([section, sectionTasks]) => {
-          const sectionDone = sectionTasks.filter((t) => t.completed).length;
-          const sectionTotal = grouped[section]?.length || sectionTasks.length;
-          return (
-            <div key={section} className="section">
-              <div className="section-header">
-                <h2>
-                  {SECTION_ICONS[section] || "📌"} {section}
-                </h2>
-                <span className="section-count">
-                  {sectionDone}/{sectionTotal}
-                </span>
-              </div>
-              <div className="task-list">
-                {sectionTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`task-card ${task.completed ? "completed" : ""}`}
-                    onClick={() => toggleTask(task.id, task.completed)}
-                  >
-                    <div className="checkbox">
-                      {task.completed ? "✅" : "⬜"}
-                    </div>
-                    <span className="task-title">{task.title}</span>
-                  </div>
-                ))}
-              </div>
+      <div className="grid-bg" />
+      <div className="content">
+        <div className="header">
+          <span className="brand-tag">// ÖĞRENME YOLCULUĞU</span>
+          <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
+          <p className="brand-sub">Sıfırdan üretim ortamına — her görevi tamamla, her adımda büyü</p>
+          <div className="stats-row">
+            <div className="stat-pill">
+              <span className="stat-num">{total}</span>
+              <span className="stat-label">TOPLAM</span>
             </div>
-          );
-        })}
-      </div>
-
-      {Object.keys(filteredGrouped).length === 0 && (
-        <div className="empty-state">
-          {filter === "done"
-            ? "Henuz tamamlanan gorev yok. Hadi basla!"
-            : "Tum gorevler tamamlandi! Harikasin!"}
+            <div className="stat-pill">
+              <span className="stat-num orange">{doneCount}</span>
+              <span className="stat-label">TAMAMLANDI</span>
+            </div>
+            <div className="stat-pill">
+              <span className="stat-num red">{total - doneCount}</span>
+              <span className="stat-label">KALAN</span>
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="progress-section">
+          <div className="progress-header">
+            <span className="progress-label">GENEL İLERLEME</span>
+            <span className="progress-pct">{pct}%</span>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: `${Math.max(pct, 2)}%` }} />
+          </div>
+        </div>
+
+        <div className="tabs">
+          {[
+            { key: 'all', label: `Tümü (${total})` },
+            { key: 'todo', label: `Yapılacak (${total - doneCount})` },
+            { key: 'done', label: `Tamamlanan (${doneCount})` },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              className={`tab ${filter === tab.key ? 'active' : ''}`}
+              onClick={() => setFilter(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {loading && (
+          <div className="loading-screen">
+            <div className="spinner" />
+            Backend'e bağlanıyor...
+          </div>
+        )}
+
+        {error && <div className="error-box">⚠ {error}</div>}
+
+        {!loading && !error && Object.keys(grouped).length === 0 && (
+          <div className="empty-state">// Bu filtrede görev bulunamadı</div>
+        )}
+
+        {!loading && Object.entries(grouped).map(([section, sectionTasks]) => (
+          <div className="section" key={section}>
+            <div className="section-label">
+              {section}
+              <span className="section-count">
+                {sectionTasks.filter(t => t.completed).length}/{sectionTasks.length}
+              </span>
+            </div>
+            {sectionTasks.map(task => (
+              <div
+                key={task.id}
+                className={`task ${task.completed ? 'done' : ''}`}
+                onClick={() => toggleTask(task)}
+              >
+                <div className="chk">{task.completed ? '✓' : ''}</div>
+                <span className="task-name">{task.title || task.name}</span>
+                <div className="task-tags">
+                  <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
+                    {getLevelLabel(task.level || task.difficulty)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <div className="footer-bar">
+          <span className="footer-text">
+            <span className="online-dot" />
+            API · <a href={API_URL} target="_blank" rel="noreferrer">devops-roadmap-backend.onrender.com</a>
+          </span>
+          <span className="footer-text">PostgreSQL · Frankfurt (EU)</span>
+        </div>
+      </div>
     </div>
   );
 }
-
-export default App;
