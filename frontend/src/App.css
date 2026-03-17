@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -20,7 +20,7 @@
 
 body {
   background: var(--navy);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--white);
   min-height: 100vh;
 }
@@ -90,7 +90,7 @@ body {
   border-radius: 8px;
   padding: 14px 16px;
   font-size: 15px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--white);
   outline: none;
   transition: all 0.2s;
@@ -109,7 +109,7 @@ body {
   border-radius: 8px;
   padding: 14px;
   font-size: 14px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   font-weight: 700;
   color: var(--white);
   cursor: pointer;
@@ -251,7 +251,7 @@ body {
   gap: 10px;
   padding: 12px 16px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--white);
   cursor: pointer;
   transition: all 0.15s;
@@ -405,7 +405,7 @@ body {
   border-radius: 5px;
   padding: 9px 18px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--muted);
   cursor: pointer;
   letter-spacing: 0.03em;
@@ -509,7 +509,7 @@ body {
   border-radius: 3px;
   font-weight: 500;
   letter-spacing: 0.05em;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
 }
 .badge.temel {
   background: rgba(33,150,243,0.12);
@@ -536,7 +536,7 @@ body {
   background: transparent;
   color: var(--muted);
   font-size: 15px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -591,7 +591,7 @@ body {
   border: 1px solid rgba(33,150,243,0.2);
   border-radius: 3px;
   padding: 2px 8px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   flex-shrink: 0;
 }
 
@@ -734,7 +734,7 @@ body {
   border-radius: 5px;
   padding: 10px 12px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--white);
   outline: none;
   transition: all 0.15s;
@@ -750,7 +750,7 @@ body {
   border-radius: 5px;
   padding: 10px 16px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--green);
   cursor: pointer;
   transition: all 0.15s;
@@ -782,7 +782,7 @@ body {
   border-radius: 5px;
   padding: 10px 14px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--muted);
   cursor: pointer;
   width: 100%;
@@ -809,7 +809,7 @@ body {
   border-radius: 5px;
   padding: 10px 12px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--white);
   outline: none;
   transition: all 0.15s;
@@ -825,7 +825,7 @@ body {
   border-radius: 5px;
   padding: 10px 16px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--white);
   cursor: pointer;
   transition: all 0.15s;
@@ -838,7 +838,7 @@ body {
   border-radius: 5px;
   padding: 10px 16px;
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Syne', sans-serif;
   color: var(--muted);
   cursor: pointer;
   transition: all 0.15s;
