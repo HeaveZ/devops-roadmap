@@ -31,15 +31,34 @@ async function initDB() {
       )
     `);
 
-    // Varsayilan kullanici: aziz / 123
+    // Varsayilan kullanicilar
     const { rowCount: userCount } = await pool.query("SELECT 1 FROM users LIMIT 1");
     if (userCount === 0) {
+      const defaultUsers = [
+        { username: "aziz", password: "123" },
+        { username: "ibrahim", password: "123" },
+      ];
+      for (const u of defaultUsers) {
+        const hash = await bcrypt.hash(u.password, 10);
+        await pool.query(
+          "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+          [u.username, hash]
+        );
+      }
+      console.log("Varsayilan kullanicilar olusturuldu: aziz, ibrahim");
+    }
+
+    // ibrahim kullanicisi yoksa ekle (mevcut DB'ler icin)
+    const { rowCount: ibrahimCheck } = await pool.query(
+      "SELECT 1 FROM users WHERE username = 'ibrahim'"
+    );
+    if (ibrahimCheck === 0) {
       const hash = await bcrypt.hash("123", 10);
       await pool.query(
         "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
-        ["aziz", hash]
+        ["ibrahim", hash]
       );
-      console.log("Varsayilan kullanici olusturuldu: aziz");
+      console.log("ibrahim kullanicisi eklendi");
     }
 
     await pool.query(`
