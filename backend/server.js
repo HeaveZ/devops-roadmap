@@ -38,6 +38,15 @@ async function initDB() {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     // Tablo boşsa varsayılan görevleri ekle
     const { rowCount } = await pool.query("SELECT 1 FROM tasks LIMIT 1");
     if (rowCount === 0) {
@@ -189,14 +198,23 @@ app.get("/api/tasks", async (req, res) => {
     const { rows: subtasks } = await pool.query(
       "SELECT * FROM subtasks ORDER BY created_at"
     );
+    const { rows: comments } = await pool.query(
+      "SELECT * FROM comments ORDER BY created_at"
+    );
     const subtaskMap = {};
     subtasks.forEach(st => {
       if (!subtaskMap[st.parent_id]) subtaskMap[st.parent_id] = [];
       subtaskMap[st.parent_id].push(st);
     });
+    const commentMap = {};
+    comments.forEach(c => {
+      if (!commentMap[c.task_id]) commentMap[c.task_id] = [];
+      commentMap[c.task_id].push(c);
+    });
     const result = tasks.map(t => ({
       ...t,
       subtasks: subtaskMap[t.id] || [],
+      comments: commentMap[t.id] || [],
     }));
     res.json(result);
   } catch (err) {
@@ -292,6 +310,45 @@ app.delete("/api/subtasks/:id", async (req, res) => {
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: "Alt görev bulunamadı" });
+    }
+    res.json({ message: "Silindi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Yorum ekle
+app.post("/api/tasks/:id/comments", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "Yorum metni gerekli" });
+    }
+    const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
+    if (parent.rows.length === 0) {
+      return res.status(404).json({ error: "Görev bulunamadı" });
+    }
+    const { rows } = await pool.query(
+      "INSERT INTO comments (task_id, text) VALUES ($1, $2) RETURNING *",
+      [id, text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Yorum sil
+app.delete("/api/comments/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      "DELETE FROM comments WHERE id = $1 RETURNING *",
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Yorum bulunamadı" });
     }
     res.json({ message: "Silindi" });
   } catch (err) {

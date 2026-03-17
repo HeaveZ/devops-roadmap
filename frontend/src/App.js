@@ -41,6 +41,12 @@ function groupBySection(tasks) {
   return groups;
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +55,8 @@ export default function App() {
   const [expandedTasks, setExpandedTasks] = useState({});
   const [subtaskInput, setSubtaskInput] = useState({});
   const [showSubtaskForm, setShowSubtaskForm] = useState({});
+  const [showComments, setShowComments] = useState({});
+  const [commentInput, setCommentInput] = useState({});
 
   useEffect(() => {
     fetch(`${API_URL}/api/tasks`)
@@ -97,7 +105,6 @@ export default function App() {
     const tempId = Date.now();
     const newSubtask = { id: tempId, parent_id: taskId, title, completed: false };
 
-    // Optimistic update
     setTasks(prev => prev.map(t =>
       t.id === taskId
         ? { ...t, subtasks: [...(t.subtasks || []), newSubtask] }
@@ -113,14 +120,12 @@ export default function App() {
         body: JSON.stringify({ title }),
       });
       const created = await res.json();
-      // Replace temp with real
       setTasks(prev => prev.map(t =>
         t.id === taskId
           ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === tempId ? created : st) }
           : t
       ));
     } catch {
-      // Rollback
       setTasks(prev => prev.map(t =>
         t.id === taskId
           ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== tempId) }
@@ -165,6 +170,60 @@ export default function App() {
     }
   };
 
+  // Comment functions
+  const toggleCommentsPanel = (taskId) => {
+    setShowComments(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const createComment = async (taskId) => {
+    const text = (commentInput[taskId] || '').trim();
+    if (!text) return;
+
+    const tempId = Date.now();
+    const newComment = { id: tempId, task_id: taskId, text, created_at: new Date().toISOString() };
+
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? { ...t, comments: [...(t.comments || []), newComment] }
+        : t
+    ));
+    setCommentInput(prev => ({ ...prev, [taskId]: '' }));
+
+    try {
+      const res = await fetch(`${API_URL}/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const created = await res.json();
+      setTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, comments: (t.comments || []).map(c => c.id === tempId ? created : c) }
+          : t
+      ));
+    } catch {
+      setTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, comments: (t.comments || []).filter(c => c.id !== tempId) }
+          : t
+      ));
+    }
+  };
+
+  const deleteComment = async (taskId, commentId) => {
+    const prev = tasks;
+    setTasks(p => p.map(t =>
+      t.id === taskId
+        ? { ...t, comments: (t.comments || []).filter(c => c.id !== commentId) }
+        : t
+    ));
+    try {
+      await fetch(`${API_URL}/api/comments/${commentId}`, { method: 'DELETE' });
+    } catch {
+      setTasks(prev);
+    }
+  };
+
   const filtered = tasks.filter(t => {
     if (filter === 'done') return t.completed;
     if (filter === 'todo') return !t.completed;
@@ -173,13 +232,11 @@ export default function App() {
 
   const grouped = groupBySection(filtered);
 
-  // Progress: tasks + subtasks
   const allSubtasks = tasks.flatMap(t => t.subtasks || []);
   const totalItems = tasks.length + allSubtasks.length;
   const doneItems = tasks.filter(t => t.completed).length + allSubtasks.filter(st => st.completed).length;
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
 
-  // Stats row still shows task-level counts
   const doneCount = tasks.filter(t => t.completed).length;
   const total = tasks.length;
 
@@ -188,9 +245,9 @@ export default function App() {
       <div className="grid-bg" />
       <div className="content">
         <div className="header">
-          <span className="brand-tag">// ÖĞRENME YOLCULUĞU</span>
+          <span className="brand-tag">// OGRENME YOLCULUGU</span>
           <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
-          <p className="brand-sub">Sıfırdan üretim ortamına — her görevi tamamla, her adımda büyü</p>
+          <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
           <div className="stats-row">
             <div className="stat-pill">
               <span className="stat-num">{total}</span>
@@ -209,7 +266,7 @@ export default function App() {
 
         <div className="progress-section">
           <div className="progress-header">
-            <span className="progress-label">GENEL İLERLEME</span>
+            <span className="progress-label">GENEL ILERLEME</span>
             <span className="progress-pct">{pct}%</span>
           </div>
           <div className="progress-track">
@@ -219,8 +276,8 @@ export default function App() {
 
         <div className="tabs">
           {[
-            { key: 'all', label: `Tümü (${total})` },
-            { key: 'todo', label: `Yapılacak (${total - doneCount})` },
+            { key: 'all', label: `Tumu (${total})` },
+            { key: 'todo', label: `Yapilacak (${total - doneCount})` },
             { key: 'done', label: `Tamamlanan (${doneCount})` },
           ].map(tab => (
             <button
@@ -236,14 +293,14 @@ export default function App() {
         {loading && (
           <div className="loading-screen">
             <div className="spinner" />
-            Backend'e bağlanıyor...
+            Backend'e baglanıyor...
           </div>
         )}
 
-        {error && <div className="error-box">⚠ {error}</div>}
+        {error && <div className="error-box">{error}</div>}
 
         {!loading && !error && Object.keys(grouped).length === 0 && (
-          <div className="empty-state">// Bu filtrede görev bulunamadı</div>
+          <div className="empty-state">// Bu filtrede gorev bulunamadi</div>
         )}
 
         {!loading && Object.entries(grouped).map(([section, sectionTasks]) => {
@@ -261,7 +318,9 @@ export default function App() {
               </div>
               {sectionTasks.map(task => {
                 const subtasks = task.subtasks || [];
+                const comments = task.comments || [];
                 const isExpanded = expandedTasks[task.id];
+                const isCommentsOpen = showComments[task.id];
                 const subDone = subtasks.filter(st => st.completed).length;
 
                 return (
@@ -276,19 +335,68 @@ export default function App() {
                       {subtasks.length > 0 && (
                         <span className="subtask-count">{subDone}/{subtasks.length}</span>
                       )}
-                      <div className="task-tags">
-                        <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
-                          {getLevelLabel(task.level || task.difficulty)}
-                        </span>
+                      <div className="task-actions">
+                        <div className="task-tags">
+                          <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
+                            {getLevelLabel(task.level || task.difficulty)}
+                          </span>
+                        </div>
+                        <button
+                          className={`action-btn comment-btn ${isCommentsOpen ? 'active' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleCommentsPanel(task.id); }}
+                          title="Yorumlar"
+                        >
+                          <span className="action-icon">💬</span>
+                          {comments.length > 0 && <span className="comment-badge">{comments.length}</span>}
+                        </button>
+                        <button
+                          className={`action-btn expand-btn ${isExpanded ? 'expanded' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
+                          title={isExpanded ? 'Kapat' : 'Alt gorevler'}
+                        >
+                          {isExpanded ? '−' : '+'}
+                        </button>
                       </div>
-                      <button
-                        className={`expand-btn ${isExpanded ? 'expanded' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
-                        title={isExpanded ? 'Kapat' : 'Alt görevler'}
-                      >
-                        {isExpanded ? '−' : '+'}
-                      </button>
                     </div>
+
+                    {isCommentsOpen && (
+                      <div className="comments-area">
+                        <div className="comments-header">Yorumlar</div>
+                        {comments.length === 0 && (
+                          <div className="no-comments">Henuz yorum yok</div>
+                        )}
+                        {comments.map(c => (
+                          <div key={c.id} className="comment-item">
+                            <div className="comment-text">{c.text}</div>
+                            <div className="comment-meta">
+                              <span className="comment-date">{formatDate(c.created_at)}</span>
+                              <button
+                                className="comment-delete-btn"
+                                onClick={() => deleteComment(task.id, c.id)}
+                                title="Sil"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="comment-form">
+                          <input
+                            className="comment-input"
+                            type="text"
+                            placeholder="Yorum yaz..."
+                            value={commentInput[task.id] || ''}
+                            onChange={(e) => setCommentInput(prev => ({ ...prev, [task.id]: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') createComment(task.id);
+                            }}
+                          />
+                          <button className="comment-send-btn" onClick={() => createComment(task.id)}>
+                            Gonder
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {isExpanded && (
                       <div className="subtask-area">
@@ -316,7 +424,7 @@ export default function App() {
                             <input
                               className="subtask-input"
                               type="text"
-                              placeholder="Alt görev başlığı..."
+                              placeholder="Alt gorev basligi..."
                               value={subtaskInput[task.id] || ''}
                               onChange={(e) => setSubtaskInput(prev => ({ ...prev, [task.id]: e.target.value }))}
                               onKeyDown={(e) => {
@@ -326,15 +434,15 @@ export default function App() {
                               autoFocus
                             />
                             <button className="subtask-create-btn" onClick={() => createSubtask(task.id)}>
-                              Create
+                              Ekle
                             </button>
                             <button className="subtask-cancel-btn" onClick={() => toggleSubtaskForm(task.id)}>
-                              Cancel
+                              Iptal
                             </button>
                           </div>
                         ) : (
                           <button className="add-subtask-btn" onClick={() => toggleSubtaskForm(task.id)}>
-                            + Alt görev ekle
+                            + Alt gorev ekle
                           </button>
                         )}
                       </div>
