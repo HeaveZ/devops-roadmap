@@ -26,9 +26,9 @@ body {
 }
 
 .app {
-  max-width: 920px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 40px 24px;
+  padding: 36px 20px 36px 28px;
   position: relative;
 }
 
@@ -45,51 +45,51 @@ body {
 
 .content { position: relative; z-index: 1; }
 
-/* HEADER */
-.header { margin-bottom: 32px; }
+/* HEADER — sol hizali */
+.header { margin-bottom: 28px; text-align: left; }
 .brand-tag {
   font-size: 12px;
   color: var(--orange);
   letter-spacing: 0.2em;
   font-weight: 700;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .brand-title {
   font-family: 'Syne', sans-serif;
-  font-size: 42px;
+  font-size: 44px;
   font-weight: 800;
   color: var(--white);
   line-height: 1;
   letter-spacing: -0.02em;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .brand-title span { color: var(--blue-bright); }
 .brand-sub {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--muted);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
 }
 
-/* STATS */
+/* STATS — sola yaslı */
 .stats-row {
   display: flex;
   gap: 10px;
-  margin-top: 24px;
-  flex-wrap: wrap;
+  margin-top: 20px;
+  justify-content: flex-start;
 }
 .stat-pill {
   background: var(--navy2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px 20px;
+  padding: 12px 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 88px;
+  min-width: 90px;
 }
 .stat-num {
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--blue-bright);
   line-height: 1;
@@ -97,14 +97,14 @@ body {
 .stat-num.orange { color: var(--orange); }
 .stat-num.red { color: var(--red); }
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.12em;
   margin-top: 4px;
 }
 
 /* PROGRESS */
-.progress-section { margin-bottom: 24px; }
+.progress-section { margin-bottom: 22px; }
 .progress-header {
   display: flex;
   justify-content: space-between;
@@ -112,7 +112,7 @@ body {
   margin-bottom: 8px;
 }
 .progress-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.12em;
 }
@@ -124,7 +124,7 @@ body {
 .progress-track {
   height: 8px;
   background: var(--navy3);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: visible;
   position: relative;
   border: 1px solid var(--border);
@@ -132,7 +132,7 @@ body {
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--blue-dim), var(--blue-bright), var(--orange));
-  border-radius: 3px;
+  border-radius: 4px;
   position: relative;
   transition: width 0.6s ease;
   min-width: 6px;
@@ -150,23 +150,23 @@ body {
   box-shadow: 0 0 10px var(--orange);
 }
 
-/* TABS */
+/* TABS — sola yaslı */
 .tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  margin-bottom: 18px;
+  justify-content: flex-start;
 }
 .tab {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 5px;
-  padding: 10px 20px;
+  padding: 9px 18px;
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
   color: var(--muted);
   cursor: pointer;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   transition: all 0.15s;
 }
 .tab:hover { border-color: var(--blue); color: var(--blue-bright); }
@@ -177,43 +177,49 @@ body {
 }
 
 /* SECTION */
-.section { margin-bottom: 8px; }
+.section { margin-bottom: 10px; }
 .section-label {
   font-size: 12px;
   color: var(--orange);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.15em;
   font-weight: 700;
-  padding: 14px 0 6px;
+  padding: 16px 0 8px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  text-transform: uppercase;
 }
 .section-count {
   color: var(--muted);
   font-size: 12px;
+  font-weight: 400;
+}
+
+/* TASK WRAPPER */
+.task-wrapper {
+  margin-bottom: 5px;
 }
 
 /* TASK */
 .task {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 13px 14px;
   background: var(--navy2);
   border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s;
-  margin-bottom: 4px;
 }
 .task:hover {
   border-color: var(--blue);
   background: var(--navy3);
-  transform: translateX(2px);
+  transform: translateX(3px);
 }
-.task.done { opacity: 0.55; }
+.task.done { opacity: 0.5; }
 .task.done .task-name {
   text-decoration: line-through;
   color: var(--muted);
@@ -241,10 +247,19 @@ body {
   color: var(--white);
   flex: 1;
   line-height: 1.4;
+  text-align: left;
+}
+
+/* TASK ACTIONS — sag taraf butonlari */
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .task-tags { display: flex; gap: 5px; flex-shrink: 0; }
 .badge {
-  font-size: 11px;
+  font-size: 10px;
   padding: 3px 10px;
   border-radius: 3px;
   font-weight: 500;
@@ -267,20 +282,15 @@ body {
   border: 1px solid rgba(244,67,54,0.3);
 }
 
-/* TASK WRAPPER */
-.task-wrapper {
-  margin-bottom: 4px;
-}
-
-/* EXPAND BUTTON */
-.expand-btn {
-  width: 28px;
-  height: 28px;
+/* ACTION BUTTONS (expand + comment) */
+.action-btn {
+  width: 30px;
+  height: 30px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 5px;
   background: transparent;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
   font-family: 'JetBrains Mono', monospace;
   cursor: pointer;
   display: flex;
@@ -289,7 +299,41 @@ body {
   flex-shrink: 0;
   transition: all 0.15s;
   line-height: 1;
+  position: relative;
 }
+.action-btn:hover {
+  border-color: var(--blue);
+  color: var(--blue-bright);
+  background: rgba(33,150,243,0.08);
+}
+
+/* COMMENT BUTTON */
+.comment-btn .action-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+.comment-btn.active {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(76,175,80,0.08);
+}
+.comment-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--orange);
+  color: var(--navy);
+  font-size: 9px;
+  font-weight: 700;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* EXPAND BUTTON */
 .expand-btn:hover {
   border-color: var(--blue);
   color: var(--blue-bright);
@@ -313,12 +357,119 @@ body {
   flex-shrink: 0;
 }
 
-/* SUBTASK AREA */
+/* ======= COMMENTS AREA ======= */
+.comments-area {
+  margin-left: 16px;
+  padding: 12px 16px;
+  border-left: 2px solid var(--green);
+  background: rgba(76,175,80,0.03);
+  border-radius: 0 6px 6px 0;
+  animation: slideDown 0.2s ease;
+  margin-top: 2px;
+}
+.comments-header {
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.no-comments {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 8px 0;
+  font-style: italic;
+}
+.comment-item {
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.comment-text {
+  font-size: 13px;
+  color: var(--white);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.comment-date {
+  font-size: 10px;
+  color: var(--muted);
+}
+.comment-delete-btn {
+  background: transparent;
+  border: none;
+  color: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+.comment-item:hover .comment-delete-btn {
+  color: var(--muted);
+}
+.comment-delete-btn:hover {
+  color: var(--red) !important;
+}
+
+/* COMMENT FORM */
+.comment-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+.comment-input {
+  flex: 1;
+  background: var(--navy3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--white);
+  outline: none;
+  transition: all 0.15s;
+}
+.comment-input::placeholder { color: var(--muted); opacity: 0.6; }
+.comment-input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 8px rgba(76,175,80,0.2);
+}
+.comment-send-btn {
+  background: rgba(76,175,80,0.15);
+  border: 1px solid var(--green);
+  border-radius: 5px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--green);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.comment-send-btn:hover {
+  background: var(--green);
+  color: var(--navy);
+}
+
+/* ======= SUBTASK AREA ======= */
 .subtask-area {
-  margin-left: 20px;
+  margin-left: 16px;
   padding: 8px 0 8px 16px;
   border-left: 2px solid var(--border);
   animation: slideDown 0.2s ease;
+  margin-top: 2px;
 }
 
 @keyframes slideDown {
@@ -354,7 +505,6 @@ body {
   margin-top: 4px;
   align-items: center;
 }
-
 .subtask-input {
   flex: 1;
   background: var(--navy3);
@@ -372,7 +522,6 @@ body {
   border-color: var(--blue);
   box-shadow: 0 0 8px rgba(33,150,243,0.2);
 }
-
 .subtask-create-btn {
   background: var(--blue-dim);
   border: 1px solid var(--blue);
@@ -388,7 +537,6 @@ body {
 .subtask-create-btn:hover {
   background: var(--blue);
 }
-
 .subtask-cancel-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -464,16 +612,15 @@ body {
   color: var(--red) !important;
 }
 
-/* FOOTER */
+/* FOOTER — sola yaslı */
 .footer-bar {
   margin-top: 32px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 24px;
 }
 .footer-text { font-size: 12px; color: var(--muted); }
 .footer-text a { color: var(--blue-bright); text-decoration: none; }
@@ -516,16 +663,16 @@ body {
 }
 
 .empty-state {
-  text-align: center;
-  padding: 40px;
+  text-align: left;
+  padding: 40px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .created-by {
-  text-align: center;
-  margin-top: 20px;
-  padding: 12px 0;
+  text-align: left;
+  margin-top: 16px;
+  padding: 10px 0;
   font-size: 12px;
   color: var(--muted);
   letter-spacing: 0.05em;
