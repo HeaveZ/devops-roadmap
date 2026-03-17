@@ -186,7 +186,7 @@ body {
   background: var(--navy2);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   transition: all 0.15s;
   flex-shrink: 0;
   cursor: pointer;
@@ -196,14 +196,14 @@ body {
   background: var(--navy3);
 }
 .user-avatar {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   background: linear-gradient(135deg, var(--blue-dim), var(--blue-bright));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--white);
   flex-shrink: 0;
@@ -223,9 +223,9 @@ body {
   transition: all 0.15s;
 }
 .user-name {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--white);
-  font-weight: 500;
+  font-weight: 600;
 }
 /* USER DROPDOWN MENU */
 .user-menu-dropdown {
