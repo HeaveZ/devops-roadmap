@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://devops-roadmap-backend.onrender.com';
@@ -52,36 +52,85 @@ export default function App() {
   const [showComments, setShowComments] = useState({});
   const [commentInput, setCommentInput] = useState({});
 
-  // Username state
+  // Auth state
+  const [token, setToken] = useState(() => localStorage.getItem('devops_token') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('devops_username') || '');
-  const [showNamePopup, setShowNamePopup] = useState(() => !localStorage.getItem('devops_username'));
-  const [nameInput, setNameInput] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('devops_token'));
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
-  const handleNameSubmit = () => {
-    const name = nameInput.trim();
-    if (!name) return;
-    localStorage.setItem('devops_username', name);
-    setUsername(name);
-    setShowNamePopup(false);
-  };
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('devops_token');
+    localStorage.removeItem('devops_username');
+    setToken('');
+    setUsername('');
+    setIsLoggedIn(false);
+    setTasks([]);
+    setLoginError('');
+  }, []);
 
-  const changeUsername = () => {
-    setNameInput(username);
-    setShowNamePopup(true);
+  const authFetch = useCallback(async (url, options = {}) => {
+    const headers = {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      handleLogout();
+      throw new Error('Oturum suresi doldu, tekrar giris yapin');
+    }
+    return res;
+  }, [token, handleLogout]);
+
+  const handleLogin = async () => {
+    if (!loginUsername.trim() || !loginPassword.trim()) return;
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      const res = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUsername.trim(), password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLoginError(data.error || 'Giris basarisiz');
+        setLoginLoading(false);
+        return;
+      }
+      localStorage.setItem('devops_token', data.token);
+      localStorage.setItem('devops_username', data.username);
+      setToken(data.token);
+      setUsername(data.username);
+      setIsLoggedIn(true);
+      setLoginUsername('');
+      setLoginPassword('');
+      setLoginError('');
+    } catch {
+      setLoginError('Sunucuya baglanilamadi');
+    }
+    setLoginLoading(false);
   };
 
   useEffect(() => {
-    fetch(`${API_URL}/api/tasks`)
+    if (!isLoggedIn || !token) {
+      setLoading(false);
+      return;
+    }
+    authFetch(`${API_URL}/api/tasks`)
       .then(r => r.json())
       .then(data => {
         setTasks(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
+        if (err.message.includes('Oturum')) return;
         setError('Backend\'e baglanamadi. Lutfen tekrar deneyin.');
         setLoading(false);
       });
-  }, []);
+  }, [isLoggedIn, token, authFetch]);
 
   const toggleTask = async (task) => {
     const updated = tasks.map(t =>
@@ -89,7 +138,7 @@ export default function App() {
     );
     setTasks(updated);
     try {
-      await fetch(`${API_URL}/api/tasks/${task.id}`, {
+      await authFetch(`${API_URL}/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: !task.completed }),
@@ -121,7 +170,7 @@ export default function App() {
     setSubtaskInput(prev => ({ ...prev, [taskId]: '' }));
     setShowSubtaskForm(prev => ({ ...prev, [taskId]: false }));
     try {
-      const res = await fetch(`${API_URL}/api/tasks/${taskId}/subtasks`, {
+      const res = await authFetch(`${API_URL}/api/tasks/${taskId}/subtasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title }),
@@ -143,7 +192,7 @@ export default function App() {
       t.id === taskId ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: newCompleted } : st) } : t
     ));
     try {
-      await fetch(`${API_URL}/api/subtasks/${subtask.id}`, {
+      await authFetch(`${API_URL}/api/subtasks/${subtask.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: newCompleted }),
@@ -161,7 +210,7 @@ export default function App() {
       t.id === taskId ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) } : t
     ));
     try {
-      await fetch(`${API_URL}/api/subtasks/${subtaskId}`, { method: 'DELETE' });
+      await authFetch(`${API_URL}/api/subtasks/${subtaskId}`, { method: 'DELETE' });
     } catch {
       setTasks(prev);
     }
@@ -181,10 +230,10 @@ export default function App() {
     ));
     setCommentInput(prev => ({ ...prev, [taskId]: '' }));
     try {
-      const res = await fetch(`${API_URL}/api/tasks/${taskId}/comments`, {
+      const res = await authFetch(`${API_URL}/api/tasks/${taskId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, author: username || 'Anonim' }),
+        body: JSON.stringify({ text }),
       });
       const created = await res.json();
       setTasks(prev => prev.map(t =>
@@ -203,7 +252,7 @@ export default function App() {
       t.id === taskId ? { ...t, comments: (t.comments || []).filter(c => c.id !== commentId) } : t
     ));
     try {
-      await fetch(`${API_URL}/api/comments/${commentId}`, { method: 'DELETE' });
+      await authFetch(`${API_URL}/api/comments/${commentId}`, { method: 'DELETE' });
     } catch {
       setTasks(prev);
     }
@@ -227,23 +276,33 @@ export default function App() {
     <div className="app">
       <div className="grid-bg" />
 
-      {/* USERNAME POPUP */}
-      {showNamePopup && (
+      {/* LOGIN EKRANI */}
+      {!isLoggedIn && (
         <div className="popup-overlay">
           <div className="popup-box">
             <div className="popup-title">Hosgeldin!</div>
-            <p className="popup-desc">DevOps Roadmap'e erisim icin ismini gir</p>
+            <p className="popup-desc">DevOps Roadmap'e erisim icin giris yap</p>
+            {loginError && <div className="login-error">{loginError}</div>}
             <input
               className="popup-input"
               type="text"
-              placeholder="Ismin..."
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleNameSubmit(); }}
+              placeholder="Kullanici adi..."
+              value={loginUsername}
+              onChange={(e) => setLoginUsername(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('login-password').focus(); }}
               autoFocus
             />
-            <button className="popup-btn" onClick={handleNameSubmit}>
-              Giris Yap
+            <input
+              id="login-password"
+              className="popup-input"
+              type="password"
+              placeholder="Sifre..."
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+            />
+            <button className="popup-btn" onClick={handleLogin} disabled={loginLoading}>
+              {loginLoading ? 'Giris yapiliyor...' : 'Giris Yap'}
             </button>
           </div>
         </div>
@@ -257,10 +316,11 @@ export default function App() {
               <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
               <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
             </div>
-            {username && (
-              <div className="user-badge" onClick={changeUsername} title="Ismi degistir">
+            {username && isLoggedIn && (
+              <div className="user-badge" onClick={handleLogout} title="Cikis yap">
                 <span className="user-avatar">{username.charAt(0).toUpperCase()}</span>
                 <span className="user-name">{username}</span>
+                <span className="logout-icon">↗</span>
               </div>
             )}
           </div>
@@ -306,7 +366,7 @@ export default function App() {
           ))}
         </div>
 
-        {loading && (
+        {loading && isLoggedIn && (
           <div className="loading-screen">
             <div className="spinner" />
             Backend'e baglaniliyor...
@@ -315,7 +375,7 @@ export default function App() {
 
         {error && <div className="error-box">{error}</div>}
 
-        {!loading && !error && Object.keys(grouped).length === 0 && (
+        {!loading && !error && isLoggedIn && Object.keys(grouped).length === 0 && (
           <div className="empty-state">// Bu filtrede gorev bulunamadi</div>
         )}
 

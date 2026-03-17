@@ -1,10 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware
 app.use(cors());
@@ -18,6 +21,27 @@ const pool = new Pool({
 // Veritabanı tablosunu oluştur (ilk çalıştırmada)
 async function initDB() {
   try {
+    // Users tablosu (tasks'tan ONCE)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Varsayilan kullanici: aziz / 123
+    const { rowCount: userCount } = await pool.query("SELECT 1 FROM users LIMIT 1");
+    if (userCount === 0) {
+      const hash = await bcrypt.hash("123", 10);
+      await pool.query(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+        ["aziz", hash]
+      );
+      console.log("Varsayilan kullanici olusturuldu: aziz");
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
@@ -196,10 +220,56 @@ async function initDB() {
   }
 }
 
+// --- AUTH MIDDLEWARE ---
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Yetkilendirme gerekli" });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = { userId: decoded.userId, username: decoded.username };
+    next();
+  } catch {
+    return res.status(401).json({ error: "Gecersiz veya suresi dolmus token" });
+  }
+}
+
 // --- API ROUTES ---
 
+// Login (korumasiz)
+app.post("/api/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Kullanici adi ve sifre gerekli" });
+    }
+    const { rows } = await pool.query(
+      "SELECT * FROM users WHERE username = $1",
+      [username.trim()]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ error: "Kullanici adi veya sifre hatali" });
+    }
+    const user = rows[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: "Kullanici adi veya sifre hatali" });
+    }
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    res.json({ token, username: user.username });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Tüm görevleri getir (subtask'larla birlikte)
-app.get("/api/tasks", async (req, res) => {
+app.get("/api/tasks", authMiddleware, async (req, res) => {
   try {
     const { rows: tasks } = await pool.query(
       "SELECT * FROM tasks ORDER BY section, id"
@@ -232,7 +302,7 @@ app.get("/api/tasks", async (req, res) => {
 });
 
 // Yeni görev oluştur
-app.post("/api/tasks", async (req, res) => {
+app.post("/api/tasks", authMiddleware, async (req, res) => {
   try {
     const { title, section } = req.body;
     if (!title || !title.trim()) {
@@ -252,7 +322,7 @@ app.post("/api/tasks", async (req, res) => {
 });
 
 // Görev durumunu güncelle (tamamlandı işaretleme)
-app.patch("/api/tasks/:id", async (req, res) => {
+app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { completed } = req.body;
@@ -270,7 +340,7 @@ app.patch("/api/tasks/:id", async (req, res) => {
 });
 
 // Alt görev oluştur
-app.post("/api/tasks/:id/subtasks", async (req, res) => {
+app.post("/api/tasks/:id/subtasks", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
@@ -292,7 +362,7 @@ app.post("/api/tasks/:id/subtasks", async (req, res) => {
 });
 
 // Alt görev durumunu güncelle
-app.patch("/api/subtasks/:id", async (req, res) => {
+app.patch("/api/subtasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { completed } = req.body;
@@ -310,7 +380,7 @@ app.patch("/api/subtasks/:id", async (req, res) => {
 });
 
 // Alt görevi sil
-app.delete("/api/subtasks/:id", async (req, res) => {
+app.delete("/api/subtasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
@@ -326,11 +396,11 @@ app.delete("/api/subtasks/:id", async (req, res) => {
   }
 });
 
-// Yorum ekle
-app.post("/api/tasks/:id/comments", async (req, res) => {
+// Yorum ekle (author artik req.user.username'den geliyor)
+app.post("/api/tasks/:id/comments", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { text, author } = req.body;
+    const { text } = req.body;
     if (!text || !text.trim()) {
       return res.status(400).json({ error: "Yorum metni gerekli" });
     }
@@ -338,7 +408,7 @@ app.post("/api/tasks/:id/comments", async (req, res) => {
     if (parent.rows.length === 0) {
       return res.status(404).json({ error: "Görev bulunamadı" });
     }
-    const authorName = (author && author.trim()) ? author.trim() : 'Anonim';
+    const authorName = req.user.username;
     const { rows } = await pool.query(
       "INSERT INTO comments (task_id, text, author) VALUES ($1, $2, $3) RETURNING *",
       [id, text.trim(), authorName]
@@ -350,7 +420,7 @@ app.post("/api/tasks/:id/comments", async (req, res) => {
 });
 
 // Yorum sil
-app.delete("/api/comments/:id", async (req, res) => {
+app.delete("/api/comments/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
