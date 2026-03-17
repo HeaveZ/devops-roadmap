@@ -58,6 +58,13 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('devops_token'));
   const [avatarData, setAvatarData] = useState(() => localStorage.getItem('devops_avatar') || '');
   const fileInputRef = useRef(null);
+  const userMenuRef = useRef(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -152,6 +159,49 @@ export default function App() {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  // Disari tiklaninca dropdown kapanir
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword.trim() || !newPassword.trim()) return;
+    setPasswordLoading(true);
+    setPasswordMsg('');
+    try {
+      const res = await authFetch(`${API_URL}/api/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPasswordMsg(data.error || 'Sifre degistirilemedi');
+        setPasswordLoading(false);
+        return;
+      }
+      setPasswordMsg('Sifre basariyla degistirildi!');
+      setPasswordLoading(false);
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setPasswordMsg('');
+      }, 1500);
+    } catch {
+      setPasswordMsg('Sunucuya baglanilamadi');
+      setPasswordLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -348,6 +398,42 @@ export default function App() {
         </div>
       )}
 
+      {/* SIFRE DEGISTIRME MODALI */}
+      {showPasswordModal && (
+        <div className="password-overlay" onClick={() => { setShowPasswordModal(false); setCurrentPassword(''); setNewPassword(''); setPasswordMsg(''); }}>
+          <div className="password-box" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-title">Sifre Degistir</div>
+            <p className="popup-desc">Mevcut sifrenizi dogrulayin ve yeni sifrenizi girin</p>
+            {passwordMsg && (
+              <div className={`password-msg ${passwordMsg.includes('basariyla') ? 'success' : 'error'}`}>
+                {passwordMsg}
+              </div>
+            )}
+            <input
+              className="popup-input"
+              type="password"
+              placeholder="Mevcut sifre..."
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('new-password').focus(); }}
+              autoFocus
+            />
+            <input
+              id="new-password"
+              className="popup-input"
+              type="password"
+              placeholder="Yeni sifre..."
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleChangePassword(); }}
+            />
+            <button className="popup-btn" onClick={handleChangePassword} disabled={passwordLoading}>
+              {passwordLoading ? 'Degistiriliyor...' : 'Sifreyi Degistir'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="content">
         <div className="header">
           <div className="header-top">
@@ -357,7 +443,7 @@ export default function App() {
               <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
             </div>
             {username && isLoggedIn && (
-              <div className="user-badge-area">
+              <div className="user-badge-area" ref={userMenuRef}>
                 <input
                   type="file"
                   accept="image/*"
@@ -365,16 +451,26 @@ export default function App() {
                   style={{ display: 'none' }}
                   onChange={handleAvatarUpload}
                 />
-                <div className="user-badge">
-                  <span className="user-avatar" onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} title="Profil resmi yukle">
+                <div className="user-badge" onClick={() => setShowUserMenu(prev => !prev)}>
+                  <span className="user-avatar">
                     {avatarData ? <img src={avatarData} alt="avatar" /> : username.charAt(0).toUpperCase()}
                   </span>
-                  <button className="avatar-upload-btn" onClick={() => fileInputRef.current.click()} title="Profil resmi yukle">
-                    📷
-                  </button>
                   <span className="user-name">{username}</span>
-                  <span className="logout-icon" onClick={handleLogout} title="Cikis yap">↗</span>
+                  <span className="user-badge-arrow">{showUserMenu ? '▲' : '▼'}</span>
                 </div>
+                {showUserMenu && (
+                  <div className="user-menu-dropdown">
+                    <div className="user-menu-item" onClick={() => { fileInputRef.current.click(); setShowUserMenu(false); }}>
+                      <span className="user-menu-icon">📷</span> Fotograf Degistir
+                    </div>
+                    <div className="user-menu-item" onClick={() => { setShowPasswordModal(true); setShowUserMenu(false); }}>
+                      <span className="user-menu-icon">🔑</span> Sifre Degistir
+                    </div>
+                    <div className="user-menu-item danger" onClick={() => { handleLogout(); setShowUserMenu(false); }}>
+                      <span className="user-menu-icon">↗</span> Cikis Yap
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -309,6 +309,35 @@ app.post("/api/avatar", authMiddleware, async (req, res) => {
   }
 });
 
+// Sifre degistir (korunmali)
+app.post("/api/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Mevcut sifre ve yeni sifre gerekli" });
+    }
+    const { rows } = await pool.query(
+      "SELECT * FROM users WHERE id = $1",
+      [req.user.userId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Kullanici bulunamadi" });
+    }
+    const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: "Mevcut sifre hatali" });
+    }
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      "UPDATE users SET password_hash = $1 WHERE id = $2",
+      [newHash, req.user.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Kullanici avatarini getir (korumasiz)
 app.get("/api/avatar/:username", async (req, res) => {
   try {
