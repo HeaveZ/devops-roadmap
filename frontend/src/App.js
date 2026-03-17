@@ -3,18 +3,6 @@ import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://devops-roadmap-backend.onrender.com';
 
-const SECTIONS_ORDER = [
-  'Linux Temelleri',
-  'Versiyon Kontrolü',
-  'Container & Docker',
-  'CI/CD Pipeline',
-  'Altyapı Otomasyonu (IaC)',
-  'Bulut Platformları',
-  'İzleme & Logging',
-  'Güvenlik (DevSecOps)',
-  'Orkestrasyon',
-];
-
 function getLevelClass(level) {
   if (!level) return 'temel';
   const l = level.toLowerCase();
@@ -26,7 +14,7 @@ function getLevelClass(level) {
 function getLevelLabel(level) {
   if (!level) return 'Temel';
   const l = level.toLowerCase();
-  if (l.includes('ileri') || l.includes('advanced')) return 'İleri';
+  if (l.includes('ileri') || l.includes('advanced')) return 'Ileri';
   if (l.includes('orta') || l.includes('intermediate') || l.includes('medium')) return 'Orta';
   return 'Temel';
 }
@@ -41,10 +29,16 @@ function groupBySection(tasks) {
   return groups;
 }
 
-function formatDate(dateStr) {
+function formatFullDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const gun = d.getDate().toString().padStart(2, '0');
+  const ay = (d.getMonth() + 1).toString().padStart(2, '0');
+  const yil = d.getFullYear();
+  const saat = d.getHours().toString().padStart(2, '0');
+  const dk = d.getMinutes().toString().padStart(2, '0');
+  const sn = d.getSeconds().toString().padStart(2, '0');
+  return `${gun}.${ay}.${yil} ${saat}:${dk}:${sn}`;
 }
 
 export default function App() {
@@ -58,6 +52,24 @@ export default function App() {
   const [showComments, setShowComments] = useState({});
   const [commentInput, setCommentInput] = useState({});
 
+  // Username state
+  const [username, setUsername] = useState(() => localStorage.getItem('devops_username') || '');
+  const [showNamePopup, setShowNamePopup] = useState(() => !localStorage.getItem('devops_username'));
+  const [nameInput, setNameInput] = useState('');
+
+  const handleNameSubmit = () => {
+    const name = nameInput.trim();
+    if (!name) return;
+    localStorage.setItem('devops_username', name);
+    setUsername(name);
+    setShowNamePopup(false);
+  };
+
+  const changeUsername = () => {
+    setNameInput(username);
+    setShowNamePopup(true);
+  };
+
   useEffect(() => {
     fetch(`${API_URL}/api/tasks`)
       .then(r => r.json())
@@ -66,7 +78,7 @@ export default function App() {
         setLoading(false);
       })
       .catch(err => {
-        setError('Backend\'e bağlanılamadı. Lütfen tekrar deneyin.');
+        setError('Backend\'e baglanamadi. Lutfen tekrar deneyin.');
         setLoading(false);
       });
   }, []);
@@ -101,18 +113,13 @@ export default function App() {
   const createSubtask = async (taskId) => {
     const title = (subtaskInput[taskId] || '').trim();
     if (!title) return;
-
     const tempId = Date.now();
     const newSubtask = { id: tempId, parent_id: taskId, title, completed: false };
-
     setTasks(prev => prev.map(t =>
-      t.id === taskId
-        ? { ...t, subtasks: [...(t.subtasks || []), newSubtask] }
-        : t
+      t.id === taskId ? { ...t, subtasks: [...(t.subtasks || []), newSubtask] } : t
     ));
     setSubtaskInput(prev => ({ ...prev, [taskId]: '' }));
     setShowSubtaskForm(prev => ({ ...prev, [taskId]: false }));
-
     try {
       const res = await fetch(`${API_URL}/api/tasks/${taskId}/subtasks`, {
         method: 'POST',
@@ -121,15 +128,11 @@ export default function App() {
       });
       const created = await res.json();
       setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === tempId ? created : st) }
-          : t
+        t.id === taskId ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === tempId ? created : st) } : t
       ));
     } catch {
       setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== tempId) }
-          : t
+        t.id === taskId ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== tempId) } : t
       ));
     }
   };
@@ -137,9 +140,7 @@ export default function App() {
   const toggleSubtask = async (taskId, subtask) => {
     const newCompleted = !subtask.completed;
     setTasks(prev => prev.map(t =>
-      t.id === taskId
-        ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: newCompleted } : st) }
-        : t
+      t.id === taskId ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: newCompleted } : st) } : t
     ));
     try {
       await fetch(`${API_URL}/api/subtasks/${subtask.id}`, {
@@ -149,9 +150,7 @@ export default function App() {
       });
     } catch {
       setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: subtask.completed } : st) }
-          : t
+        t.id === taskId ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: subtask.completed } : st) } : t
       ));
     }
   };
@@ -159,9 +158,7 @@ export default function App() {
   const deleteSubtask = async (taskId, subtaskId) => {
     const prev = tasks;
     setTasks(p => p.map(t =>
-      t.id === taskId
-        ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) }
-        : t
+      t.id === taskId ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) } : t
     ));
     try {
       await fetch(`${API_URL}/api/subtasks/${subtaskId}`, { method: 'DELETE' });
@@ -170,7 +167,6 @@ export default function App() {
     }
   };
 
-  // Comment functions
   const toggleCommentsPanel = (taskId) => {
     setShowComments(prev => ({ ...prev, [taskId]: !prev[taskId] }));
   };
@@ -178,34 +174,25 @@ export default function App() {
   const createComment = async (taskId) => {
     const text = (commentInput[taskId] || '').trim();
     if (!text) return;
-
     const tempId = Date.now();
-    const newComment = { id: tempId, task_id: taskId, text, created_at: new Date().toISOString() };
-
+    const newComment = { id: tempId, task_id: taskId, text, author: username || 'Anonim', created_at: new Date().toISOString() };
     setTasks(prev => prev.map(t =>
-      t.id === taskId
-        ? { ...t, comments: [...(t.comments || []), newComment] }
-        : t
+      t.id === taskId ? { ...t, comments: [...(t.comments || []), newComment] } : t
     ));
     setCommentInput(prev => ({ ...prev, [taskId]: '' }));
-
     try {
       const res = await fetch(`${API_URL}/api/tasks/${taskId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, author: username || 'Anonim' }),
       });
       const created = await res.json();
       setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? { ...t, comments: (t.comments || []).map(c => c.id === tempId ? created : c) }
-          : t
+        t.id === taskId ? { ...t, comments: (t.comments || []).map(c => c.id === tempId ? created : c) } : t
       ));
     } catch {
       setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? { ...t, comments: (t.comments || []).filter(c => c.id !== tempId) }
-          : t
+        t.id === taskId ? { ...t, comments: (t.comments || []).filter(c => c.id !== tempId) } : t
       ));
     }
   };
@@ -213,9 +200,7 @@ export default function App() {
   const deleteComment = async (taskId, commentId) => {
     const prev = tasks;
     setTasks(p => p.map(t =>
-      t.id === taskId
-        ? { ...t, comments: (t.comments || []).filter(c => c.id !== commentId) }
-        : t
+      t.id === taskId ? { ...t, comments: (t.comments || []).filter(c => c.id !== commentId) } : t
     ));
     try {
       await fetch(`${API_URL}/api/comments/${commentId}`, { method: 'DELETE' });
@@ -231,23 +216,54 @@ export default function App() {
   });
 
   const grouped = groupBySection(filtered);
-
   const allSubtasks = tasks.flatMap(t => t.subtasks || []);
   const totalItems = tasks.length + allSubtasks.length;
   const doneItems = tasks.filter(t => t.completed).length + allSubtasks.filter(st => st.completed).length;
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
-
   const doneCount = tasks.filter(t => t.completed).length;
   const total = tasks.length;
 
   return (
     <div className="app">
       <div className="grid-bg" />
+
+      {/* USERNAME POPUP */}
+      {showNamePopup && (
+        <div className="popup-overlay">
+          <div className="popup-box">
+            <div className="popup-title">Hosgeldin!</div>
+            <p className="popup-desc">DevOps Roadmap'e erisim icin ismini gir</p>
+            <input
+              className="popup-input"
+              type="text"
+              placeholder="Ismin..."
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleNameSubmit(); }}
+              autoFocus
+            />
+            <button className="popup-btn" onClick={handleNameSubmit}>
+              Giris Yap
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="content">
         <div className="header">
-          <span className="brand-tag">// OGRENME YOLCULUGU</span>
-          <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
-          <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
+          <div className="header-top">
+            <div className="header-left">
+              <span className="brand-tag">// OGRENME YOLCULUGU</span>
+              <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
+              <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
+            </div>
+            {username && (
+              <div className="user-badge" onClick={changeUsername} title="Ismi degistir">
+                <span className="user-avatar">{username.charAt(0).toUpperCase()}</span>
+                <span className="user-name">{username}</span>
+              </div>
+            )}
+          </div>
           <div className="stats-row">
             <div className="stat-pill">
               <span className="stat-num">{total}</span>
@@ -293,7 +309,7 @@ export default function App() {
         {loading && (
           <div className="loading-screen">
             <div className="spinner" />
-            Backend'e baglanıyor...
+            Backend'e baglaniliyor...
           </div>
         )}
 
@@ -312,9 +328,7 @@ export default function App() {
             <div className="section" key={section}>
               <div className="section-label">
                 {section}
-                <span className="section-count">
-                  {sectionDone}/{sectionTotal}
-                </span>
+                <span className="section-count">{sectionDone}/{sectionTotal}</span>
               </div>
               {sectionTasks.map(task => {
                 const subtasks = task.subtasks || [];
@@ -336,11 +350,9 @@ export default function App() {
                         <span className="subtask-count">{subDone}/{subtasks.length}</span>
                       )}
                       <div className="task-actions">
-                        <div className="task-tags">
-                          <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
-                            {getLevelLabel(task.level || task.difficulty)}
-                          </span>
-                        </div>
+                        <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
+                          {getLevelLabel(task.level || task.difficulty)}
+                        </span>
                         <button
                           className={`action-btn comment-btn ${isCommentsOpen ? 'active' : ''}`}
                           onClick={(e) => { e.stopPropagation(); toggleCommentsPanel(task.id); }}
@@ -367,29 +379,30 @@ export default function App() {
                         )}
                         {comments.map(c => (
                           <div key={c.id} className="comment-item">
-                            <div className="comment-text">{c.text}</div>
-                            <div className="comment-meta">
-                              <span className="comment-date">{formatDate(c.created_at)}</span>
-                              <button
-                                className="comment-delete-btn"
-                                onClick={() => deleteComment(task.id, c.id)}
-                                title="Sil"
-                              >
-                                ×
-                              </button>
+                            <div className="comment-top">
+                              <span className="comment-author-avatar">{(c.author || 'A').charAt(0).toUpperCase()}</span>
+                              <span className="comment-author">{c.author || 'Anonim'}</span>
+                              <span className="comment-date">{formatFullDate(c.created_at)}</span>
                             </div>
+                            <div className="comment-text">{c.text}</div>
+                            <button
+                              className="comment-delete-btn"
+                              onClick={() => deleteComment(task.id, c.id)}
+                              title="Sil"
+                            >
+                              ×
+                            </button>
                           </div>
                         ))}
                         <div className="comment-form">
+                          <span className="comment-form-avatar">{(username || 'A').charAt(0).toUpperCase()}</span>
                           <input
                             className="comment-input"
                             type="text"
-                            placeholder="Yorum yaz..."
+                            placeholder={`${username || 'Anonim'} olarak yorum yaz...`}
                             value={commentInput[task.id] || ''}
                             onChange={(e) => setCommentInput(prev => ({ ...prev, [task.id]: e.target.value }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') createComment(task.id);
-                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') createComment(task.id); }}
                           />
                           <button className="comment-send-btn" onClick={() => createComment(task.id)}>
                             Gonder
@@ -402,10 +415,7 @@ export default function App() {
                       <div className="subtask-area">
                         {subtasks.map(st => (
                           <div key={st.id} className={`subtask ${st.completed ? 'done' : ''}`}>
-                            <div
-                              className="chk"
-                              onClick={() => toggleSubtask(task.id, st)}
-                            >
+                            <div className="chk" onClick={() => toggleSubtask(task.id, st)}>
                               {st.completed ? '✓' : ''}
                             </div>
                             <span className="subtask-name">{st.title}</span>
@@ -413,12 +423,9 @@ export default function App() {
                               className="subtask-delete-btn"
                               onClick={() => deleteSubtask(task.id, st.id)}
                               title="Sil"
-                            >
-                              ×
-                            </button>
+                            >×</button>
                           </div>
                         ))}
-
                         {showSubtaskForm[task.id] ? (
                           <div className="subtask-form">
                             <input
@@ -433,12 +440,8 @@ export default function App() {
                               }}
                               autoFocus
                             />
-                            <button className="subtask-create-btn" onClick={() => createSubtask(task.id)}>
-                              Ekle
-                            </button>
-                            <button className="subtask-cancel-btn" onClick={() => toggleSubtaskForm(task.id)}>
-                              Iptal
-                            </button>
+                            <button className="subtask-create-btn" onClick={() => createSubtask(task.id)}>Ekle</button>
+                            <button className="subtask-cancel-btn" onClick={() => toggleSubtaskForm(task.id)}>Iptal</button>
                           </div>
                         ) : (
                           <button className="add-subtask-btn" onClick={() => toggleSubtaskForm(task.id)}>

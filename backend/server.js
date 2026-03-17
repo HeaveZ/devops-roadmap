@@ -42,9 +42,18 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
         task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        author VARCHAR(100) DEFAULT 'Anonim',
         text TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       )
+    `);
+
+    // Mevcut tabloya author kolonu ekle (varsa atla)
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE comments ADD COLUMN IF NOT EXISTS author VARCHAR(100) DEFAULT 'Anonim';
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$
     `);
 
     // Tablo boşsa varsayılan görevleri ekle
@@ -321,7 +330,7 @@ app.delete("/api/subtasks/:id", async (req, res) => {
 app.post("/api/tasks/:id/comments", async (req, res) => {
   try {
     const { id } = req.params;
-    const { text } = req.body;
+    const { text, author } = req.body;
     if (!text || !text.trim()) {
       return res.status(400).json({ error: "Yorum metni gerekli" });
     }
@@ -329,9 +338,10 @@ app.post("/api/tasks/:id/comments", async (req, res) => {
     if (parent.rows.length === 0) {
       return res.status(404).json({ error: "Görev bulunamadı" });
     }
+    const authorName = (author && author.trim()) ? author.trim() : 'Anonim';
     const { rows } = await pool.query(
-      "INSERT INTO comments (task_id, text) VALUES ($1, $2) RETURNING *",
-      [id, text.trim()]
+      "INSERT INTO comments (task_id, text, author) VALUES ($1, $2, $3) RETURNING *",
+      [id, text.trim(), authorName]
     );
     res.status(201).json(rows[0]);
   } catch (err) {

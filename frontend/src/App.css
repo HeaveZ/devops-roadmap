@@ -27,8 +27,9 @@ body {
 
 .app {
   max-width: 960px;
-  margin: 0 auto;
-  padding: 36px 20px 36px 28px;
+  margin: 0;
+  margin-left: max(20px, calc((100vw - 960px) / 3));
+  padding: 36px 20px 36px 0;
   position: relative;
 }
 
@@ -45,8 +46,92 @@ body {
 
 .content { position: relative; z-index: 1; }
 
-/* HEADER — sol hizali */
-.header { margin-bottom: 28px; text-align: left; }
+/* ======= POPUP MODAL ======= */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,13,26,0.92);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.popup-box {
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px 36px;
+  width: 380px;
+  max-width: 90vw;
+  text-align: center;
+  animation: popIn 0.3s ease;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.popup-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--blue-bright);
+  margin-bottom: 8px;
+}
+.popup-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+.popup-input {
+  width: 100%;
+  background: var(--navy3);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--white);
+  outline: none;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.popup-input::placeholder { color: var(--muted); opacity: 0.5; }
+.popup-input:focus {
+  border-color: var(--blue-bright);
+  box-shadow: 0 0 16px rgba(33,150,243,0.25);
+}
+.popup-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--blue-dim), var(--blue));
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+.popup-btn:hover {
+  background: linear-gradient(135deg, var(--blue), var(--blue-bright));
+  box-shadow: 0 4px 20px rgba(33,150,243,0.3);
+  transform: translateY(-1px);
+}
+
+/* ======= HEADER ======= */
+.header { margin-bottom: 24px; text-align: left; }
+.header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.header-left { flex: 1; }
 .brand-tag {
   font-size: 12px;
   color: var(--orange);
@@ -71,7 +156,44 @@ body {
   letter-spacing: 0.03em;
 }
 
-/* STATS — sola yaslı */
+/* USER BADGE */
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.user-badge:hover {
+  border-color: var(--blue);
+  background: var(--navy3);
+}
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--blue-dim), var(--blue-bright));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+  flex-shrink: 0;
+}
+.user-name {
+  font-size: 13px;
+  color: var(--white);
+  font-weight: 500;
+}
+
+/* STATS */
 .stats-row {
   display: flex;
   gap: 10px;
@@ -150,7 +272,7 @@ body {
   box-shadow: 0 0 10px var(--orange);
 }
 
-/* TABS — sola yaslı */
+/* TABS */
 .tabs {
   display: flex;
   gap: 6px;
@@ -198,9 +320,7 @@ body {
 }
 
 /* TASK WRAPPER */
-.task-wrapper {
-  margin-bottom: 5px;
-}
+.task-wrapper { margin-bottom: 5px; }
 
 /* TASK */
 .task {
@@ -250,14 +370,13 @@ body {
   text-align: left;
 }
 
-/* TASK ACTIONS — sag taraf butonlari */
+/* TASK ACTIONS */
 .task-actions {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
-.task-tags { display: flex; gap: 5px; flex-shrink: 0; }
 .badge {
   font-size: 10px;
   padding: 3px 10px;
@@ -282,7 +401,7 @@ body {
   border: 1px solid rgba(244,67,54,0.3);
 }
 
-/* ACTION BUTTONS (expand + comment) */
+/* ACTION BUTTONS */
 .action-btn {
   width: 30px;
   height: 30px;
@@ -306,12 +425,7 @@ body {
   color: var(--blue-bright);
   background: rgba(33,150,243,0.08);
 }
-
-/* COMMENT BUTTON */
-.comment-btn .action-icon {
-  font-size: 14px;
-  line-height: 1;
-}
+.comment-btn .action-icon { font-size: 14px; line-height: 1; }
 .comment-btn.active {
   border-color: var(--green);
   color: var(--green);
@@ -332,8 +446,6 @@ body {
   align-items: center;
   justify-content: center;
 }
-
-/* EXPAND BUTTON */
 .expand-btn:hover {
   border-color: var(--blue);
   color: var(--blue-bright);
@@ -345,7 +457,7 @@ body {
   background: rgba(255,109,0,0.08);
 }
 
-/* SUBTASK COUNT BADGE */
+/* SUBTASK COUNT */
 .subtask-count {
   font-size: 11px;
   color: var(--muted);
@@ -359,9 +471,9 @@ body {
 
 /* ======= COMMENTS AREA ======= */
 .comments-area {
-  margin-left: 16px;
-  padding: 12px 16px;
-  border-left: 2px solid var(--green);
+  margin-left: 0;
+  padding: 14px 16px;
+  border-left: 3px solid var(--green);
   background: rgba(76,175,80,0.03);
   border-radius: 0 6px 6px 0;
   animation: slideDown 0.2s ease;
@@ -373,7 +485,7 @@ body {
   letter-spacing: 0.1em;
   font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .no-comments {
   font-size: 12px;
@@ -381,52 +493,87 @@ body {
   padding: 8px 0;
   font-style: italic;
 }
+
+/* COMMENT ITEM */
 .comment-item {
   background: var(--navy2);
   border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  position: relative;
 }
-.comment-text {
-  font-size: 13px;
-  color: var(--white);
-  line-height: 1.5;
-  word-break: break-word;
-}
-.comment-meta {
+.comment-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 6px;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.comment-author-avatar {
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, var(--orange), var(--orange-soft));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--navy);
+  flex-shrink: 0;
+}
+.comment-author {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--orange-soft);
 }
 .comment-date {
   font-size: 10px;
   color: var(--muted);
+  margin-left: auto;
+}
+.comment-text {
+  font-size: 13px;
+  color: var(--white);
+  line-height: 1.6;
+  word-break: break-word;
+  padding-left: 30px;
 }
 .comment-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   background: transparent;
   border: none;
   color: transparent;
   font-size: 16px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 2px 4px;
   line-height: 1;
   transition: all 0.15s;
 }
-.comment-item:hover .comment-delete-btn {
-  color: var(--muted);
-}
-.comment-delete-btn:hover {
-  color: var(--red) !important;
-}
+.comment-item:hover .comment-delete-btn { color: var(--muted); }
+.comment-delete-btn:hover { color: var(--red) !important; }
 
 /* COMMENT FORM */
 .comment-form {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
   align-items: center;
+}
+.comment-form-avatar {
+  width: 26px;
+  height: 26px;
+  background: linear-gradient(135deg, var(--blue-dim), var(--blue-bright));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--white);
+  flex-shrink: 0;
 }
 .comment-input {
   flex: 1;
@@ -465,9 +612,9 @@ body {
 
 /* ======= SUBTASK AREA ======= */
 .subtask-area {
-  margin-left: 16px;
+  margin-left: 0;
   padding: 8px 0 8px 16px;
-  border-left: 2px solid var(--border);
+  border-left: 3px solid var(--border);
   animation: slideDown 0.2s ease;
   margin-top: 2px;
 }
@@ -477,7 +624,6 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ADD SUBTASK BUTTON */
 .add-subtask-btn {
   background: transparent;
   border: 1px dashed var(--border);
@@ -498,7 +644,6 @@ body {
   background: rgba(33,150,243,0.05);
 }
 
-/* SUBTASK FORM */
 .subtask-form {
   display: flex;
   gap: 6px;
@@ -534,9 +679,7 @@ body {
   transition: all 0.15s;
   white-space: nowrap;
 }
-.subtask-create-btn:hover {
-  background: var(--blue);
-}
+.subtask-create-btn:hover { background: var(--blue); }
 .subtask-cancel-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -554,7 +697,6 @@ body {
   color: var(--red);
 }
 
-/* SUBTASK ITEM */
 .subtask {
   display: flex;
   align-items: center;
@@ -571,11 +713,7 @@ body {
   border-color: var(--blue);
   background: var(--navy3);
 }
-.subtask .chk {
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
-}
+.subtask .chk { width: 18px; height: 18px; font-size: 11px; }
 .subtask-name {
   flex: 1;
   color: var(--white);
@@ -592,8 +730,6 @@ body {
   border-color: var(--blue);
   color: var(--white);
 }
-
-/* SUBTASK DELETE BUTTON */
 .subtask-delete-btn {
   background: transparent;
   border: none;
@@ -605,14 +741,10 @@ body {
   transition: all 0.15s;
   flex-shrink: 0;
 }
-.subtask:hover .subtask-delete-btn {
-  color: var(--muted);
-}
-.subtask-delete-btn:hover {
-  color: var(--red) !important;
-}
+.subtask:hover .subtask-delete-btn { color: var(--muted); }
+.subtask-delete-btn:hover { color: var(--red) !important; }
 
-/* FOOTER — sola yaslı */
+/* FOOTER */
 .footer-bar {
   margin-top: 32px;
   padding-top: 16px;
@@ -636,8 +768,8 @@ body {
 
 /* LOADING / ERROR */
 .loading-screen {
-  text-align: center;
-  padding: 60px 20px;
+  text-align: left;
+  padding: 60px 0;
   color: var(--muted);
   font-size: 13px;
 }
@@ -648,7 +780,7 @@ body {
   border-top-color: var(--blue);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 16px;
+  margin: 0 0 16px 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -660,6 +792,7 @@ body {
   color: var(--red);
   font-size: 12px;
   margin-bottom: 16px;
+  text-align: left;
 }
 
 .empty-state {
