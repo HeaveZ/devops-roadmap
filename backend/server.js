@@ -97,6 +97,81 @@ async function initDB() {
       console.log("Varsayılan görevler eklendi.");
     }
 
+    // Kişisel roadmap görevlerini ekle (bir kez)
+    const { rowCount: roadmapCheck } = await pool.query(
+      "SELECT 1 FROM tasks WHERE title LIKE '* %' LIMIT 1"
+    );
+    if (roadmapCheck === 0) {
+      const roadmap = [
+        // Docker Deep Dive
+        {
+          section: "Docker Deep Dive",
+          tasks: [
+            { title: "* Multi-stage builds", subtasks: ["* Github'da evamX projelerini incele ve Dockerfile yapısı ile ilgili bir analiz yap."] },
+            { title: "* Docker networking detayları (bridge, overlay, host)", subtasks: ["* Docker network yapısını ve kavramlarını öğren"] },
+            { title: "* Volume management ve persistent storage", subtasks: ["* Stateful uygulamalar için volume ve persistent storage kavramlarını öğren"] },
+            { title: "* Docker security best practices", subtasks: ["* Dockerize bir uygulama için güvenlik best practice'lerini öğren"] },
+            { title: "* Image optimization teknikleri", subtasks: ["* Docker build sonrasında oluşan Image'ın optimizasyonlarını araştır ve uygula"] },
+          ],
+        },
+        // Linux & Scripting
+        {
+          section: "Linux & Scripting",
+          tasks: [
+            { title: "* Bash scripting", subtasks: ["* Temel bash scriptlerini kullanmayı alışkanlık haline getir, AI ile işine yarayacak scriptler oluştur."] },
+            { title: "* Log analizi araçları (grep, awk, sed, jq)", subtasks: ["* Çalışan docker container yada pod içindeki uygulamanın loglarını analiz etmeyi öğren"] },
+            { title: "* Systemd servisleri", subtasks: ["* Temel linux servisleri ve yeni bir servisin systemd'e eklenmesini araştır"] },
+            { title: "* Cron jobs ve automation", subtasks: ["* Zamanlı işler için cronjob oluşturmayı öğren"] },
+          ],
+        },
+        // Networking Temelleri
+        {
+          section: "Networking Temelleri",
+          tasks: [
+            { title: "* TCP/IP deep dive", subtasks: ["* Temel network kavramları, özellikle docker ve kubernetes ortamlar için"] },
+            { title: "* Load balancing kavramları", subtasks: ["* Load Balancer yapısı ve kavramlarını öğren"] },
+            { title: "* Reverse proxy (Nginx detaylı)", subtasks: ["* Reverse Proxy kavramını ve teknik yapısını öğren"] },
+            { title: "* DNS management", subtasks: ["* DNS yönetimini, teknik yapısını ve kavramlarını öğren"] },
+          ],
+        },
+        // Pratik Projeler
+        {
+          section: "Pratik Projeler",
+          tasks: [
+            { title: "* evamX servislerinden birini multi-stage build ile optimize et", subtasks: [] },
+            { title: "* Docker Compose ile 5+ servisli bir environment kur (DB, evamX, Nginx)", subtasks: [] },
+            { title: "* Nginx ile reverse proxy + SSL termination kur", subtasks: [] },
+            { title: "* Belirttiğim bütün teknik süreçler ile ilgili kendi lokalinde test et", subtasks: [] },
+          ],
+        },
+        // ToDo
+        {
+          section: "ToDo",
+          tasks: [
+            { title: "* Haftada 2 saat pair programming", subtasks: [] },
+            { title: "* Code review", subtasks: [] },
+          ],
+        },
+      ];
+
+      for (const group of roadmap) {
+        for (const task of group.tasks) {
+          const { rows } = await pool.query(
+            "INSERT INTO tasks (title, section) VALUES ($1, $2) RETURNING id",
+            [task.title, group.section]
+          );
+          const taskId = rows[0].id;
+          for (const st of task.subtasks) {
+            await pool.query(
+              "INSERT INTO subtasks (parent_id, title) VALUES ($1, $2)",
+              [taskId, st]
+            );
+          }
+        }
+      }
+      console.log("Kişisel roadmap görevleri eklendi.");
+    }
+
     console.log("Veritabanı hazır.");
   } catch (err) {
     console.error("DB init hatası:", err.message);
@@ -124,6 +199,26 @@ app.get("/api/tasks", async (req, res) => {
       subtasks: subtaskMap[t.id] || [],
     }));
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Yeni görev oluştur
+app.post("/api/tasks", async (req, res) => {
+  try {
+    const { title, section } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: "Başlık gerekli" });
+    }
+    if (!section || !section.trim()) {
+      return res.status(400).json({ error: "Section gerekli" });
+    }
+    const { rows } = await pool.query(
+      "INSERT INTO tasks (title, section) VALUES ($1, $2) RETURNING *",
+      [title.trim(), section.trim()]
+    );
+    res.status(201).json({ ...rows[0], subtasks: [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
