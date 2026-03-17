@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://devops-roadmap-backend.onrender.com';
@@ -56,6 +56,8 @@ export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('devops_token') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('devops_username') || '');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('devops_token'));
+  const [avatarData, setAvatarData] = useState(() => localStorage.getItem('devops_avatar') || '');
+  const fileInputRef = useRef(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -64,8 +66,10 @@ export default function App() {
   const handleLogout = useCallback(() => {
     localStorage.removeItem('devops_token');
     localStorage.removeItem('devops_username');
+    localStorage.removeItem('devops_avatar');
     setToken('');
     setUsername('');
+    setAvatarData('');
     setIsLoggedIn(false);
     setTasks([]);
     setLoginError('');
@@ -102,6 +106,13 @@ export default function App() {
       }
       localStorage.setItem('devops_token', data.token);
       localStorage.setItem('devops_username', data.username);
+      if (data.avatarData) {
+        localStorage.setItem('devops_avatar', data.avatarData);
+        setAvatarData(data.avatarData);
+      } else {
+        localStorage.removeItem('devops_avatar');
+        setAvatarData('');
+      }
       setToken(data.token);
       setUsername(data.username);
       setIsLoggedIn(true);
@@ -112,6 +123,35 @@ export default function App() {
       setLoginError('Sunucuya baglanilamadi');
     }
     setLoginLoading(false);
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Dosya boyutu 2MB\'dan kucuk olmali');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result;
+      try {
+        const res = await authFetch(`${API_URL}/api/avatar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarData: base64 }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setAvatarData(data.avatarData);
+          localStorage.setItem('devops_avatar', data.avatarData);
+        }
+      } catch {
+        alert('Avatar yuklenemedi');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -317,10 +357,24 @@ export default function App() {
               <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
             </div>
             {username && isLoggedIn && (
-              <div className="user-badge" onClick={handleLogout} title="Cikis yap">
-                <span className="user-avatar">{username.charAt(0).toUpperCase()}</span>
-                <span className="user-name">{username}</span>
-                <span className="logout-icon">↗</span>
+              <div className="user-badge-area">
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarUpload}
+                />
+                <div className="user-badge">
+                  <span className="user-avatar" onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} title="Profil resmi yukle">
+                    {avatarData ? <img src={avatarData} alt="avatar" /> : username.charAt(0).toUpperCase()}
+                  </span>
+                  <button className="avatar-upload-btn" onClick={() => fileInputRef.current.click()} title="Profil resmi yukle">
+                    📷
+                  </button>
+                  <span className="user-name">{username}</span>
+                  <span className="logout-icon" onClick={handleLogout} title="Cikis yap">↗</span>
+                </div>
               </div>
             )}
           </div>
@@ -482,7 +536,9 @@ export default function App() {
                         {comments.map(c => (
                           <div key={c.id} className="comment-item">
                             <div className="comment-top">
-                              <span className="comment-author-avatar">{(c.author || 'A').charAt(0).toUpperCase()}</span>
+                              <span className="comment-author-avatar">
+                                {c.author === username && avatarData ? <img src={avatarData} alt="avatar" /> : (c.author || 'A').charAt(0).toUpperCase()}
+                              </span>
                               <span className="comment-author">{c.author || 'Anonim'}</span>
                               <span className="comment-date">{formatFullDate(c.created_at)}</span>
                             </div>
@@ -497,7 +553,9 @@ export default function App() {
                           </div>
                         ))}
                         <div className="comment-form">
-                          <span className="comment-form-avatar">{(username || 'A').charAt(0).toUpperCase()}</span>
+                          <span className="comment-form-avatar">
+                            {avatarData ? <img src={avatarData} alt="avatar" /> : (username || 'A').charAt(0).toUpperCase()}
+                          </span>
                           <input
                             className="comment-input"
                             type="text"
