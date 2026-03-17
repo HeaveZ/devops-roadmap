@@ -267,6 +267,203 @@ body {
   border: 1px solid rgba(244,67,54,0.3);
 }
 
+/* TASK WRAPPER */
+.task-wrapper {
+  margin-bottom: 4px;
+}
+
+/* EXPAND BUTTON */
+.expand-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.expand-btn:hover {
+  border-color: var(--blue);
+  color: var(--blue-bright);
+  background: rgba(33,150,243,0.08);
+}
+.expand-btn.expanded {
+  border-color: var(--orange);
+  color: var(--orange);
+  background: rgba(255,109,0,0.08);
+}
+
+/* SUBTASK COUNT BADGE */
+.subtask-count {
+  font-size: 9px;
+  color: var(--muted);
+  background: rgba(33,150,243,0.1);
+  border: 1px solid rgba(33,150,243,0.2);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+/* SUBTASK AREA */
+.subtask-area {
+  margin-left: 20px;
+  padding: 8px 0 8px 16px;
+  border-left: 2px solid var(--border);
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ADD SUBTASK BUTTON */
+.add-subtask-btn {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.add-subtask-btn:hover {
+  border-color: var(--blue);
+  color: var(--blue-bright);
+  background: rgba(33,150,243,0.05);
+}
+
+/* SUBTASK FORM */
+.subtask-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.subtask-input {
+  flex: 1;
+  background: var(--navy3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--white);
+  outline: none;
+  transition: all 0.15s;
+}
+.subtask-input::placeholder { color: var(--muted); opacity: 0.6; }
+.subtask-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 8px rgba(33,150,243,0.2);
+}
+
+.subtask-create-btn {
+  background: var(--blue-dim);
+  border: 1px solid var(--blue);
+  border-radius: 5px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--white);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.subtask-create-btn:hover {
+  background: var(--blue);
+}
+
+.subtask-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.subtask-cancel-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* SUBTASK ITEM */
+.subtask {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--navy2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  margin-bottom: 3px;
+  transition: all 0.15s;
+  font-size: 11px;
+}
+.subtask:hover {
+  border-color: var(--blue);
+  background: var(--navy3);
+}
+.subtask .chk {
+  width: 15px;
+  height: 15px;
+  font-size: 9px;
+}
+.subtask-name {
+  flex: 1;
+  color: var(--white);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.subtask.done { opacity: 0.5; }
+.subtask.done .subtask-name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.subtask.done .chk {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+  color: var(--white);
+}
+
+/* SUBTASK DELETE BUTTON */
+.subtask-delete-btn {
+  background: transparent;
+  border: none;
+  color: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.subtask:hover .subtask-delete-btn {
+  color: var(--muted);
+}
+.subtask-delete-btn:hover {
+  color: var(--red) !important;
+}
+
 /* FOOTER */
 .footer-bar {
   margin-top: 32px;
