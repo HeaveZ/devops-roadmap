@@ -26,9 +26,9 @@ body {
 }
 
 .app {
-  max-width: 960px;
+  max-width: 1300px;
   margin: 0;
-  margin-left: max(20px, calc((100vw - 960px) / 3));
+  margin-left: 20px;
   padding: 36px 20px 36px 0;
   position: relative;
 }
@@ -321,6 +321,15 @@ body {
 
 /* TASK WRAPPER */
 .task-wrapper { margin-bottom: 5px; }
+.task-wrapper.with-comments {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.task-left {
+  flex: 1;
+  min-width: 0;
+}
 
 /* TASK */
 .task {
@@ -471,13 +480,20 @@ body {
 
 /* ======= COMMENTS AREA ======= */
 .comments-area {
-  margin-left: 0;
+  width: 360px;
+  flex-shrink: 0;
   padding: 14px 16px;
   border-left: 3px solid var(--green);
   background: rgba(76,175,80,0.03);
   border-radius: 0 6px 6px 0;
-  animation: slideDown 0.2s ease;
-  margin-top: 2px;
+  animation: slideRight 0.2s ease;
+  margin-top: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 .comments-header {
   font-size: 11px;

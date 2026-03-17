@@ -338,37 +338,79 @@ export default function App() {
                 const subDone = subtasks.filter(st => st.completed).length;
 
                 return (
-                  <div className="task-wrapper" key={task.id}>
-                    <div className={`task ${task.completed ? 'done' : ''}`}>
-                      <div className="chk" onClick={(e) => { e.stopPropagation(); toggleTask(task); }}>
-                        {task.completed ? '✓' : ''}
-                      </div>
-                      <span className="task-name" onClick={() => toggleTask(task)}>
-                        {task.title || task.name}
-                      </span>
-                      {subtasks.length > 0 && (
-                        <span className="subtask-count">{subDone}/{subtasks.length}</span>
-                      )}
-                      <div className="task-actions">
-                        <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
-                          {getLevelLabel(task.level || task.difficulty)}
+                  <div className={`task-wrapper ${isCommentsOpen ? 'with-comments' : ''}`} key={task.id}>
+                    <div className="task-left">
+                      <div className={`task ${task.completed ? 'done' : ''}`}>
+                        <div className="chk" onClick={(e) => { e.stopPropagation(); toggleTask(task); }}>
+                          {task.completed ? '✓' : ''}
+                        </div>
+                        <span className="task-name" onClick={() => toggleTask(task)}>
+                          {task.title || task.name}
                         </span>
-                        <button
-                          className={`action-btn comment-btn ${isCommentsOpen ? 'active' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); toggleCommentsPanel(task.id); }}
-                          title="Yorumlar"
-                        >
-                          <span className="action-icon">💬</span>
-                          {comments.length > 0 && <span className="comment-badge">{comments.length}</span>}
-                        </button>
-                        <button
-                          className={`action-btn expand-btn ${isExpanded ? 'expanded' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
-                          title={isExpanded ? 'Kapat' : 'Alt gorevler'}
-                        >
-                          {isExpanded ? '−' : '+'}
-                        </button>
+                        {subtasks.length > 0 && (
+                          <span className="subtask-count">{subDone}/{subtasks.length}</span>
+                        )}
+                        <div className="task-actions">
+                          <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
+                            {getLevelLabel(task.level || task.difficulty)}
+                          </span>
+                          <button
+                            className={`action-btn comment-btn ${isCommentsOpen ? 'active' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); toggleCommentsPanel(task.id); }}
+                            title="Yorumlar"
+                          >
+                            <span className="action-icon">💬</span>
+                            {comments.length > 0 && <span className="comment-badge">{comments.length}</span>}
+                          </button>
+                          <button
+                            className={`action-btn expand-btn ${isExpanded ? 'expanded' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
+                            title={isExpanded ? 'Kapat' : 'Alt gorevler'}
+                          >
+                            {isExpanded ? '−' : '+'}
+                          </button>
+                        </div>
                       </div>
+
+                      {isExpanded && (
+                        <div className="subtask-area">
+                          {subtasks.map(st => (
+                            <div key={st.id} className={`subtask ${st.completed ? 'done' : ''}`}>
+                              <div className="chk" onClick={() => toggleSubtask(task.id, st)}>
+                                {st.completed ? '✓' : ''}
+                              </div>
+                              <span className="subtask-name">{st.title}</span>
+                              <button
+                                className="subtask-delete-btn"
+                                onClick={() => deleteSubtask(task.id, st.id)}
+                                title="Sil"
+                              >×</button>
+                            </div>
+                          ))}
+                          {showSubtaskForm[task.id] ? (
+                            <div className="subtask-form">
+                              <input
+                                className="subtask-input"
+                                type="text"
+                                placeholder="Alt gorev basligi..."
+                                value={subtaskInput[task.id] || ''}
+                                onChange={(e) => setSubtaskInput(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') createSubtask(task.id);
+                                  if (e.key === 'Escape') toggleSubtaskForm(task.id);
+                                }}
+                                autoFocus
+                              />
+                              <button className="subtask-create-btn" onClick={() => createSubtask(task.id)}>Ekle</button>
+                              <button className="subtask-cancel-btn" onClick={() => toggleSubtaskForm(task.id)}>Iptal</button>
+                            </div>
+                          ) : (
+                            <button className="add-subtask-btn" onClick={() => toggleSubtaskForm(task.id)}>
+                              + Alt gorev ekle
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {isCommentsOpen && (
@@ -408,46 +450,6 @@ export default function App() {
                             Gonder
                           </button>
                         </div>
-                      </div>
-                    )}
-
-                    {isExpanded && (
-                      <div className="subtask-area">
-                        {subtasks.map(st => (
-                          <div key={st.id} className={`subtask ${st.completed ? 'done' : ''}`}>
-                            <div className="chk" onClick={() => toggleSubtask(task.id, st)}>
-                              {st.completed ? '✓' : ''}
-                            </div>
-                            <span className="subtask-name">{st.title}</span>
-                            <button
-                              className="subtask-delete-btn"
-                              onClick={() => deleteSubtask(task.id, st.id)}
-                              title="Sil"
-                            >×</button>
-                          </div>
-                        ))}
-                        {showSubtaskForm[task.id] ? (
-                          <div className="subtask-form">
-                            <input
-                              className="subtask-input"
-                              type="text"
-                              placeholder="Alt gorev basligi..."
-                              value={subtaskInput[task.id] || ''}
-                              onChange={(e) => setSubtaskInput(prev => ({ ...prev, [task.id]: e.target.value }))}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') createSubtask(task.id);
-                                if (e.key === 'Escape') toggleSubtaskForm(task.id);
-                              }}
-                              autoFocus
-                            />
-                            <button className="subtask-create-btn" onClick={() => createSubtask(task.id)}>Ekle</button>
-                            <button className="subtask-cancel-btn" onClick={() => toggleSubtaskForm(task.id)}>Iptal</button>
-                          </div>
-                        ) : (
-                          <button className="add-subtask-btn" onClick={() => toggleSubtaskForm(task.id)}>
-                            + Alt gorev ekle
-                          </button>
-                        )}
                       </div>
                     )}
                   </div>
