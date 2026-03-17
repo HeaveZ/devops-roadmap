@@ -122,6 +122,24 @@ body {
   box-shadow: 0 4px 20px rgba(33,150,243,0.3);
   transform: translateY(-1px);
 }
+.popup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.popup-input[type="password"] {
+  letter-spacing: 0.15em;
+}
+.login-error {
+  background: rgba(244,67,54,0.12);
+  border: 1px solid rgba(244,67,54,0.4);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: var(--red);
+  font-size: 12px;
+  margin-bottom: 16px;
+  text-align: center;
+}
 
 /* ======= HEADER ======= */
 .header { margin-bottom: 24px; text-align: left; }
@@ -170,10 +188,6 @@ body {
   flex-shrink: 0;
   margin-top: 4px;
 }
-.user-badge:hover {
-  border-color: var(--blue);
-  background: var(--navy3);
-}
 .user-avatar {
   width: 28px;
   height: 28px;
@@ -191,6 +205,19 @@ body {
   font-size: 13px;
   color: var(--white);
   font-weight: 500;
+}
+.logout-icon {
+  font-size: 14px;
+  color: var(--muted);
+  transition: all 0.15s;
+  margin-left: 4px;
+}
+.user-badge:hover .logout-icon {
+  color: var(--red);
+}
+.user-badge:hover {
+  border-color: var(--red);
+  background: rgba(244,67,54,0.06);
 }
 
 /* STATS */
