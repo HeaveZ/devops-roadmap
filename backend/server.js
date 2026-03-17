@@ -11,7 +11,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "k8s_d3v0ps_r0adm4p_s3cr3t_2024xYz"
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 // PostgreSQL bağlantısı
 const pool = new Pool({
@@ -97,6 +97,11 @@ async function initDB() {
         ALTER TABLE comments ADD COLUMN IF NOT EXISTS author VARCHAR(100) DEFAULT 'Anonim';
       EXCEPTION WHEN duplicate_column THEN NULL;
       END $$
+    `);
+
+    // Avatar kolonu ekle
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data TEXT
     `);
 
     // Tablo boşsa varsayılan görevleri ekle
@@ -281,7 +286,41 @@ app.post("/api/login", async (req, res) => {
       JWT_SECRET,
       { expiresIn: "7d" }
     );
-    res.json({ token, username: user.username });
+    res.json({ token, username: user.username, avatarData: user.avatar_data || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Avatar yukle (korunmali)
+app.post("/api/avatar", authMiddleware, async (req, res) => {
+  try {
+    const { avatarData } = req.body;
+    if (!avatarData) {
+      return res.status(400).json({ error: "Avatar verisi gerekli" });
+    }
+    await pool.query(
+      "UPDATE users SET avatar_data = $1 WHERE id = $2",
+      [avatarData, req.user.userId]
+    );
+    res.json({ success: true, avatarData });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Kullanici avatarini getir (korumasiz)
+app.get("/api/avatar/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { rows } = await pool.query(
+      "SELECT avatar_data FROM users WHERE username = $1",
+      [username]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Kullanici bulunamadi" });
+    }
+    res.json({ avatarData: rows[0].avatar_data || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
