@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css";
 
-const API_URL = "http://localhost:5000/api/tasks";
+const API_URL = 'https://devops-roadmap-backend.onrender.com';
 
 const SECTION_ICONS = {
   "Linux & OS": "🐧",
