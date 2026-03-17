@@ -307,7 +307,13 @@ export default function App() {
   };
 
   const toggleCommentsPanel = (taskId) => {
-    setShowComments(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+    setShowComments(prev => {
+      const isOpen = prev[taskId];
+      if (isOpen) return { ...prev, [taskId]: false };
+      const allClosed = {};
+      Object.keys(prev).forEach(k => { allClosed[k] = false; });
+      return { ...allClosed, [taskId]: true };
+    });
   };
 
   const createComment = async (taskId) => {
