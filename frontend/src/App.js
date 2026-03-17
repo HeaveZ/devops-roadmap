@@ -46,6 +46,9 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [expandedTasks, setExpandedTasks] = useState({});
+  const [subtaskInput, setSubtaskInput] = useState({});
+  const [showSubtaskForm, setShowSubtaskForm] = useState({});
 
   useEffect(() => {
     fetch(`${API_URL}/api/tasks`)
@@ -76,6 +79,92 @@ export default function App() {
     }
   };
 
+  const toggleExpand = (taskId) => {
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const toggleSubtaskForm = (taskId) => {
+    setShowSubtaskForm(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+    if (!showSubtaskForm[taskId]) {
+      setSubtaskInput(prev => ({ ...prev, [taskId]: '' }));
+    }
+  };
+
+  const createSubtask = async (taskId) => {
+    const title = (subtaskInput[taskId] || '').trim();
+    if (!title) return;
+
+    const tempId = Date.now();
+    const newSubtask = { id: tempId, parent_id: taskId, title, completed: false };
+
+    // Optimistic update
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? { ...t, subtasks: [...(t.subtasks || []), newSubtask] }
+        : t
+    ));
+    setSubtaskInput(prev => ({ ...prev, [taskId]: '' }));
+    setShowSubtaskForm(prev => ({ ...prev, [taskId]: false }));
+
+    try {
+      const res = await fetch(`${API_URL}/api/tasks/${taskId}/subtasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      const created = await res.json();
+      // Replace temp with real
+      setTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === tempId ? created : st) }
+          : t
+      ));
+    } catch {
+      // Rollback
+      setTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== tempId) }
+          : t
+      ));
+    }
+  };
+
+  const toggleSubtask = async (taskId, subtask) => {
+    const newCompleted = !subtask.completed;
+    setTasks(prev => prev.map(t =>
+      t.id === taskId
+        ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: newCompleted } : st) }
+        : t
+    ));
+    try {
+      await fetch(`${API_URL}/api/subtasks/${subtask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: newCompleted }),
+      });
+    } catch {
+      setTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks || []).map(st => st.id === subtask.id ? { ...st, completed: subtask.completed } : st) }
+          : t
+      ));
+    }
+  };
+
+  const deleteSubtask = async (taskId, subtaskId) => {
+    const prev = tasks;
+    setTasks(p => p.map(t =>
+      t.id === taskId
+        ? { ...t, subtasks: (t.subtasks || []).filter(st => st.id !== subtaskId) }
+        : t
+    ));
+    try {
+      await fetch(`${API_URL}/api/subtasks/${subtaskId}`, { method: 'DELETE' });
+    } catch {
+      setTasks(prev);
+    }
+  };
+
   const filtered = tasks.filter(t => {
     if (filter === 'done') return t.completed;
     if (filter === 'todo') return !t.completed;
@@ -83,9 +172,16 @@ export default function App() {
   });
 
   const grouped = groupBySection(filtered);
+
+  // Progress: tasks + subtasks
+  const allSubtasks = tasks.flatMap(t => t.subtasks || []);
+  const totalItems = tasks.length + allSubtasks.length;
+  const doneItems = tasks.filter(t => t.completed).length + allSubtasks.filter(st => st.completed).length;
+  const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+
+  // Stats row still shows task-level counts
   const doneCount = tasks.filter(t => t.completed).length;
   const total = tasks.length;
-  const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
     <div className="app">
@@ -150,31 +246,105 @@ export default function App() {
           <div className="empty-state">// Bu filtrede görev bulunamadı</div>
         )}
 
-        {!loading && Object.entries(grouped).map(([section, sectionTasks]) => (
-          <div className="section" key={section}>
-            <div className="section-label">
-              {section}
-              <span className="section-count">
-                {sectionTasks.filter(t => t.completed).length}/{sectionTasks.length}
-              </span>
-            </div>
-            {sectionTasks.map(task => (
-              <div
-                key={task.id}
-                className={`task ${task.completed ? 'done' : ''}`}
-                onClick={() => toggleTask(task)}
-              >
-                <div className="chk">{task.completed ? '✓' : ''}</div>
-                <span className="task-name">{task.title || task.name}</span>
-                <div className="task-tags">
-                  <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
-                    {getLevelLabel(task.level || task.difficulty)}
-                  </span>
-                </div>
+        {!loading && Object.entries(grouped).map(([section, sectionTasks]) => {
+          const sectionSubs = sectionTasks.flatMap(t => t.subtasks || []);
+          const sectionTotal = sectionTasks.length + sectionSubs.length;
+          const sectionDone = sectionTasks.filter(t => t.completed).length + sectionSubs.filter(st => st.completed).length;
+
+          return (
+            <div className="section" key={section}>
+              <div className="section-label">
+                {section}
+                <span className="section-count">
+                  {sectionDone}/{sectionTotal}
+                </span>
               </div>
-            ))}
-          </div>
-        ))}
+              {sectionTasks.map(task => {
+                const subtasks = task.subtasks || [];
+                const isExpanded = expandedTasks[task.id];
+                const subDone = subtasks.filter(st => st.completed).length;
+
+                return (
+                  <div className="task-wrapper" key={task.id}>
+                    <div className={`task ${task.completed ? 'done' : ''}`}>
+                      <div className="chk" onClick={(e) => { e.stopPropagation(); toggleTask(task); }}>
+                        {task.completed ? '✓' : ''}
+                      </div>
+                      <span className="task-name" onClick={() => toggleTask(task)}>
+                        {task.title || task.name}
+                      </span>
+                      {subtasks.length > 0 && (
+                        <span className="subtask-count">{subDone}/{subtasks.length}</span>
+                      )}
+                      <div className="task-tags">
+                        <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
+                          {getLevelLabel(task.level || task.difficulty)}
+                        </span>
+                      </div>
+                      <button
+                        className={`expand-btn ${isExpanded ? 'expanded' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
+                        title={isExpanded ? 'Kapat' : 'Alt görevler'}
+                      >
+                        {isExpanded ? '−' : '+'}
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="subtask-area">
+                        {subtasks.map(st => (
+                          <div key={st.id} className={`subtask ${st.completed ? 'done' : ''}`}>
+                            <div
+                              className="chk"
+                              onClick={() => toggleSubtask(task.id, st)}
+                            >
+                              {st.completed ? '✓' : ''}
+                            </div>
+                            <span className="subtask-name">{st.title}</span>
+                            <button
+                              className="subtask-delete-btn"
+                              onClick={() => deleteSubtask(task.id, st.id)}
+                              title="Sil"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+
+                        {showSubtaskForm[task.id] ? (
+                          <div className="subtask-form">
+                            <input
+                              className="subtask-input"
+                              type="text"
+                              placeholder="Alt görev başlığı..."
+                              value={subtaskInput[task.id] || ''}
+                              onChange={(e) => setSubtaskInput(prev => ({ ...prev, [task.id]: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') createSubtask(task.id);
+                                if (e.key === 'Escape') toggleSubtaskForm(task.id);
+                              }}
+                              autoFocus
+                            />
+                            <button className="subtask-create-btn" onClick={() => createSubtask(task.id)}>
+                              Create
+                            </button>
+                            <button className="subtask-cancel-btn" onClick={() => toggleSubtaskForm(task.id)}>
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button className="add-subtask-btn" onClick={() => toggleSubtaskForm(task.id)}>
+                            + Alt görev ekle
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
 
         <div className="footer-bar">
           <span className="footer-text">
