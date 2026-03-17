@@ -26,10 +26,9 @@ body {
 }
 
 .app {
-  max-width: 1300px;
-  margin: 0;
-  margin-left: 20px;
-  padding: 36px 20px 36px 0;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 36px 24px;
   position: relative;
 }
 
