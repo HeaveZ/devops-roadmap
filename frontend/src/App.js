@@ -398,7 +398,7 @@ export default function App() {
                 const subDone = subtasks.filter(st => st.completed).length;
 
                 return (
-                  <div className={`task-wrapper ${isCommentsOpen ? 'with-comments' : ''}`} key={task.id}>
+                  <div className="task-wrapper" key={task.id}>
                     <div className="task-left">
                       <div className={`task ${task.completed ? 'done' : ''}`}>
                         <div className="chk" onClick={(e) => { e.stopPropagation(); toggleTask(task); }}>
