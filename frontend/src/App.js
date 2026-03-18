@@ -679,13 +679,6 @@ export default function App() {
           );
         })}
 
-        <div className="footer-bar">
-          <span className="footer-text">
-            <span className="online-dot" />
-            API · <a href={API_URL} target="_blank" rel="noreferrer">devops-roadmap-backend.onrender.com</a>
-          </span>
-          <span className="footer-text">PostgreSQL · Frankfurt (EU)</span>
-        </div>
         <div className="created-by">created by HeaveZ :)</div>
       </div>
     </div>
