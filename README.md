@@ -5,7 +5,7 @@ TASKLY - Tam Mimari Dokumantasyonu
 --------------
 Proje: Taskly - DevOps Roadmap Tracker
 Domain: heavezz.uk
-Sunucu: Contabo VPS (161.97.95.33) - Linux amd64
+Sunucu: Contabo VPS  - Linux amd64
 Orkestrasyon: Docker Compose (4 container)
 Kaynak Kod: github.com/HeaveZ/devops-roadmap
 
@@ -22,7 +22,7 @@ Kaynak Kod: github.com/HeaveZ/devops-roadmap
                     |  DDoS Koruma |
                     +------+------+
                            |
-                   Contabo VPS (161.97.95.33)
+                   Contabo VPS 
                            |
               +------------+------------+
               |     Docker Network      |
@@ -233,7 +233,7 @@ Ozellikler:
 
   1. Kullanici heavezz.uk'ye girer
   2. DNS -> Cloudflare (188.114.97.3) -> SSL terminate
-  3. Cloudflare -> Contabo (161.97.95.33:80)
+  3. Cloudflare -> Contabo (x:80)
   4. Nginx container request'i alir
   5a. "/" -> Frontend container -> React SPA (HTML/CSS/JS) doner
   5b. "/api/*" -> Backend container -> Is mantigi calisir
