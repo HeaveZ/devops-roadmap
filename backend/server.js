@@ -5,9 +5,24 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const multer = require("multer");
+
+const s3 = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const upload = multer({ storage: multer.memoryStorage() });
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "k8s_d3v0ps_r0adm4p_s3cr3t_2024xYz";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware
 app.use(cors());
@@ -31,29 +46,33 @@ async function initDB() {
       )
     `);
 
-    // Varsayilan kullanicilar
+    // Varsayilan kullanicilar (sifreler .env'den alinir)
     const { rowCount: userCount } = await pool.query("SELECT 1 FROM users LIMIT 1");
     if (userCount === 0) {
       const defaultUsers = [
-        { username: "aziz", password: "123" },
-        { username: "ibrahim", password: "123" },
+        { username: "aziz", password: process.env.DEFAULT_USER_PASSWORD_AZIZ },
+        { username: "ibrahim", password: process.env.DEFAULT_USER_PASSWORD_IBRAHIM },
       ];
       for (const u of defaultUsers) {
+        if (!u.password) {
+          console.warn(`${u.username} icin sifre .env'de tanimlanmamis, atlaniyor.`);
+          continue;
+        }
         const hash = await bcrypt.hash(u.password, 10);
         await pool.query(
           "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
           [u.username, hash]
         );
       }
-      console.log("Varsayilan kullanicilar olusturuldu: aziz, ibrahim");
+      console.log("Varsayilan kullanicilar olusturuldu");
     }
 
     // ibrahim kullanicisi yoksa ekle (mevcut DB'ler icin)
     const { rowCount: ibrahimCheck } = await pool.query(
       "SELECT 1 FROM users WHERE username = 'ibrahim'"
     );
-    if (ibrahimCheck === 0) {
-      const hash = await bcrypt.hash("123", 10);
+    if (ibrahimCheck === 0 && process.env.DEFAULT_USER_PASSWORD_IBRAHIM) {
+      const hash = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD_IBRAHIM, 10);
       await pool.query(
         "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
         ["ibrahim", hash]
@@ -102,6 +121,20 @@ async function initDB() {
     // Avatar kolonu ekle
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data TEXT
+    `);
+
+    // Dosyalar tablosu
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS files (
+        id SERIAL PRIMARY KEY,
+        filename VARCHAR(255) NOT NULL,
+        s3_key VARCHAR(500) NOT NULL,
+        url TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        mimetype VARCHAR(100) NOT NULL,
+        uploaded_by VARCHAR(100) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
     `);
 
     // Tablo boşsa varsayılan görevleri ekle
@@ -527,4 +560,75 @@ app.delete("/api/comments/:id", authMiddleware, async (req, res) => {
 app.listen(PORT, async () => {
   console.log(`Server http://localhost:${PORT} adresinde çalışıyor`);
   await initDB();
+});
+
+// Dosya yukle (S3 + DB)
+app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "Dosya bulunamadi" });
+
+    const key = `uploads/${Date.now()}-${file.originalname}`;
+
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    }));
+
+    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+    const { rows } = await pool.query(
+      "INSERT INTO files (filename, s3_key, url, size, mimetype, uploaded_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      [file.originalname, key, url, file.size, file.mimetype, req.user.username]
+    );
+
+    const signedUrl = await getSignedUrl(s3, new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+    }), { expiresIn: 3600 });
+
+    res.status(201).json({ ...rows[0], url: signedUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dosyalari listele (presigned URL ile)
+app.get("/api/files", authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM files ORDER BY created_at DESC");
+    const filesWithUrls = await Promise.all(rows.map(async (f) => {
+      const signedUrl = await getSignedUrl(s3, new GetObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: f.s3_key,
+      }), { expiresIn: 3600 });
+      return { ...f, url: signedUrl };
+    }));
+    res.json(filesWithUrls);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dosya sil (S3 + DB)
+app.delete("/api/files/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query("SELECT * FROM files WHERE id = $1", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Dosya bulunamadi" });
+    }
+
+    await s3.send(new DeleteObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: rows[0].s3_key,
+    }));
+
+    await pool.query("DELETE FROM files WHERE id = $1", [id]);
+    res.json({ message: "Silindi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });

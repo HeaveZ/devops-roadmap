@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://devops-roadmap-backend.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || '';
 
 function getLevelClass(level) {
   if (!level) return 'temel';
@@ -69,6 +69,14 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Files state
+  const [view, setView] = useState('tasks');
+  const [files, setFiles] = useState([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const uploadInputRef = useRef(null);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('devops_token');
@@ -203,6 +211,71 @@ export default function App() {
       setPasswordLoading(false);
     }
   };
+
+  // Dosya islemleri
+  const fetchFiles = useCallback(async () => {
+    setFilesLoading(true);
+    try {
+      const res = await authFetch(`${API_URL}/api/files`);
+      const data = await res.json();
+      setFiles(Array.isArray(data) ? data : []);
+    } catch {}
+    setFilesLoading(false);
+  }, [authFetch]);
+
+  const handleFileUpload = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    setUploading(true);
+    for (const file of fileList) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name}: Dosya boyutu 10MB'dan kucuk olmali`);
+        continue;
+      }
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await authFetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        const created = await res.json();
+        if (res.ok) {
+          setFiles(prev => [created, ...prev]);
+        }
+      } catch {}
+    }
+    setUploading(false);
+  };
+
+  const deleteFile = async (fileId) => {
+    const prev = files;
+    setFiles(f => f.filter(x => x.id !== fileId));
+    try {
+      await authFetch(`${API_URL}/api/files/${fileId}`, { method: 'DELETE' });
+    } catch {
+      setFiles(prev);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFileUpload(e.dataTransfer.files);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const isImageFile = (mimetype) => mimetype && mimetype.startsWith('image/');
+
+  useEffect(() => {
+    if (isLoggedIn && token && view === 'files') {
+      fetchFiles();
+    }
+  }, [isLoggedIn, token, view, fetchFiles]);
 
   useEffect(() => {
     if (!isLoggedIn || !token) {
@@ -496,6 +569,16 @@ export default function App() {
           </div>
         </div>
 
+        <div className="view-tabs">
+          <button className={`view-tab ${view === 'tasks' ? 'active' : ''}`} onClick={() => setView('tasks')}>
+            Gorevler
+          </button>
+          <button className={`view-tab ${view === 'files' ? 'active' : ''}`} onClick={() => setView('files')}>
+            Dosyalar
+          </button>
+        </div>
+
+        {view === 'tasks' && <>
         <div className="progress-section">
           <div className="progress-header">
             <span className="progress-label">GENEL ILERLEME</span>
@@ -678,6 +761,83 @@ export default function App() {
             </div>
           );
         })}
+
+        </>}
+
+        {view === 'files' && (
+          <div className="files-section">
+            <div
+              className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => uploadInputRef.current?.click()}
+            >
+              <input
+                type="file"
+                ref={uploadInputRef}
+                style={{ display: 'none' }}
+                multiple
+                onChange={(e) => { handleFileUpload(e.target.files); e.target.value = ''; }}
+              />
+              <div className="upload-icon">{uploading ? '...' : '+'}</div>
+              <div className="upload-text">
+                {uploading ? 'Yukleniyor...' : 'Dosya yuklemek icin tikla veya surukle'}
+              </div>
+              <div className="upload-hint">Maks. 10MB</div>
+            </div>
+
+            {filesLoading && (
+              <div className="loading-screen">
+                <div className="spinner" />
+                Dosyalar yukleniyor...
+              </div>
+            )}
+
+            {!filesLoading && files.length === 0 && (
+              <div className="empty-state">// Henuz dosya yuklenmemis</div>
+            )}
+
+            {!filesLoading && files.length > 0 && (
+              <>
+                <div className="files-summary">
+                  {files.length} dosya &middot; Toplam {formatFileSize(files.reduce((a, f) => a + f.size, 0))}
+                </div>
+                <div className="files-list">
+                  {files.map(f => (
+                    <div key={f.id} className="file-row">
+                      <div className="file-row-preview">
+                        {isImageFile(f.mimetype) ? (
+                          <img src={f.url} alt={f.filename} />
+                        ) : (
+                          <span className="file-ext">{f.filename.split('.').pop().toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="file-row-info">
+                        <div className="file-row-name" title={f.filename}>{f.filename}</div>
+                        <div className="file-row-meta">
+                          <span className="file-row-size">{formatFileSize(f.size)}</span>
+                          <span className="file-row-sep">&middot;</span>
+                          <span>{f.uploaded_by}</span>
+                          <span className="file-row-sep">&middot;</span>
+                          <span>{formatFullDate(f.created_at)}</span>
+                        </div>
+                      </div>
+                      <div className="file-row-actions">
+                        <a href={f.url} target="_blank" rel="noopener noreferrer" className="file-btn-download" title="Indir">
+                          Indir
+                        </a>
+                        <button className="file-btn-delete" onClick={() => deleteFile(f.id)} title="Sil">
+                          Sil
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="created-by">created by HeaveZ :)</div>
       </div>
