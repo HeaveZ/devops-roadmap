@@ -278,25 +278,26 @@ Ozellikler:
 -----------------
 
   /opt/heavezz/
-  ├── .env                    <- Tum secretlar (gitignore'da)
+  ├── .env                    ← Tüm secretlar (gitignore'da)
   ├── .gitignore
-  ├── docker-compose.yml      <- Orkestrasyon tanimi
+  ├── docker-compose.yml      ← Orkestrasyon tanımı
   ├── backend/
-  │   ├── Dockerfile          <- node:18-alpine, single-stage
+  │   ├── Dockerfile          ← node:18-alpine, single-stage
   │   ├── package.json
-  │   └── server.js           <- Tum API + DB init
+  │   └── server.js           ← Tüm API + DB init
   ├── frontend/
-  │   ├── Dockerfile          <- Multi-stage (build + nginx)
+  │   ├── Dockerfile          ← Multi-stage (build + nginx)
   │   ├── package.json
   │   ├── public/
-  │   │   ├── favicon.ico     <- Heaven logosu
-  │   │   ├── heaaaaven.png   <- Orijinal logo
-  │   │   ├── logo192.png     <- Heaven logosu
-  │   │   ├── logo512.png     <- Heaven logosu
-  │   │   ├── index.html      <- Title: Taskly
-  │   │   └── manifest.json   <- PWA manifest
+  │   │   ├── favicon.ico     ← Heaven logosu
+  │   │   ├── heaaaaven.png   ← Orijinal logo
+  │   │   ├── logo192.png     ← Heaven logosu
+  │   │   ├── logo512.png     ← Heaven logosu
+  │   │   ├── index.html      ← Title: Taskly
+  │   │   └── manifest.json   ← PWA manifest
   │   └── src/
-  │       ├── App.js          <- Tum UI mantigi
-  │       └── App.css         <- Tum stiller
+  │       ├── App.js          ← Tüm UI mantığı
+  │       └── App.css         ← Tüm stiller
   └── nginx/
-      └── nginx.conf          <- Reverse proxy config
+      └── nginx.conf          ← Reverse proxy config
+
