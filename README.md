@@ -266,7 +266,7 @@ created_at  TIMESTAMP
 ```
 1. Kullanıcı heavezz.uk'ye girer
 2. DNS → Cloudflare (188.114.97.3) → SSL terminate
-3. Cloudflare → Contabo (161.97.95.33:80)
+3. Cloudflare → Contabo 
 4. Nginx container request'i alır
 5a. "/" → Frontend container → React SPA (HTML/CSS/JS) döner
 5b. "/api/*" → Backend container → İş mantığı çalışır
