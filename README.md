@@ -13,43 +13,43 @@ Kaynak Kod: github.com/HeaveZ/devops-roadmap
 2. Altyapi Mimarisi
 --------------------
 
-                        INTERNET
-                           |
-                    +------+------+
-                    |  Cloudflare  |
-                    |  DNS + CDN   |
-                    |  SSL/TLS     |
-                    |  DDoS Koruma |
-                    +------+------+
-                           |
-                   Contabo VPS 
-                           |
-              +------------+------------+
-              |     Docker Network      |
-              |     (bridge: heavezz)   |
-              |                         |
-    +---------+---------+               |
-    |   Nginx Container  |              |
-    |   (Reverse Proxy)  |              |
-    |   Port 80/443      |              |
-    +----+--------+-----+              |
-         |        |                     |
-    +----+--+ +---+----+               |
-    |  /    | | /api/* |               |
-    +---+---+ +---+----+               |
-        |         |                     |
-  +-----+--+  +--+-------+  +---------+--+
-  |Frontend |  | Backend   |  | PostgreSQL |
-  |Container|  | Container |  | Container  |
-  |nginx:80 |  | node:5000 |  | pg:5432    |
-  +---------+  +-----+-----+  +-----------+
-                     |
-              +------+------+
-              |   AWS S3    |
-              | eu-north-1  |
-              | heavezz-    |
-              | images      |
-              +-------------+
+                         İNTERNET
+                             │
+                      ┌──────┴──────┐
+                      │  Cloudflare  │
+                      │  DNS + CDN   │
+                      │  SSL/TLS     │
+                      │  DDoS Koruması│
+                      └──────┬──────┘
+                             │
+                     Contabo VPS (161.97.95.33)
+                             │
+                ┌────────────┴────────────┐
+                │     Docker Network      │
+                │     (bridge: heavezz)   │
+                │                         │
+      ┌─────────┴─────────┐              │
+      │   Nginx Container  │              │
+      │   (Reverse Proxy)  │              │
+      │   Port 80/443      │              │
+      └────┬────────┬─────┘              │
+           │        │                     │
+      ┌────┴──┐ ┌───┴────┐              │
+      │  /    │ │ /api/* │              │
+      └───┬───┘ └───┬────┘              │
+          │         │                    │
+    ┌─────┴──┐  ┌──┴───────┐  ┌────────┴──┐
+    │Frontend│  │ Backend   │  │ PostgreSQL │
+    │Container│  │ Container │  │ Container  │
+    │nginx:80│  │ node:5000 │  │ pg:5432    │
+    └────────┘  └─────┬─────┘  └────────────┘
+                       │
+                ┌──────┴──────┐
+                │   AWS S3    │
+                │ eu-north-1  │
+                │ heavezz-    │
+                │ images      │
+                └─────────────┘
 
 
 3. Container'lar (4 Adet)
