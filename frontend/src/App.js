@@ -187,24 +187,29 @@ export default function App() {
     setPasswordLoading(true);
     setPasswordMsg('');
     try {
-      const res = await authFetch(`${API_URL}/api/change-password`, {
+      const res = await fetch(`${API_URL}/api/change-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setPasswordMsg(data.error || 'Sifre degistirilemedi');
+        setPasswordMsg(data.error || 'Mevcut sifre yanlis');
+        setCurrentPassword('');
         setPasswordLoading(false);
         return;
       }
-      setPasswordMsg('Sifre basariyla degistirildi!');
+      setPasswordMsg('Sifre degistirildi! Yeni sifrenizle giris yapin...');
       setPasswordLoading(false);
       setTimeout(() => {
         setShowPasswordModal(false);
         setCurrentPassword('');
         setNewPassword('');
         setPasswordMsg('');
+        handleLogout();
       }, 1500);
     } catch {
       setPasswordMsg('Sunucuya baglanilamadi');
@@ -484,7 +489,7 @@ export default function App() {
             <div className="popup-title">Sifre Degistir</div>
             <p className="popup-desc">Mevcut sifrenizi dogrulayin ve yeni sifrenizi girin</p>
             {passwordMsg && (
-              <div className={`password-msg ${passwordMsg.includes('basariyla') ? 'success' : 'error'}`}>
+              <div className={`password-msg ${passwordMsg.includes('degistirildi') ? 'success' : 'error'}`}>
                 {passwordMsg}
               </div>
             )}
