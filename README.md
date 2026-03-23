@@ -24,6 +24,7 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
 - [Güvenlik](#güvenlik)
 - [Sunucu Yönetimi](#sunucu-yönetimi)
 - [Dosya Yapısı](#dosya-yapısı)
+- Multi-Arch Build
 
 ---
 
