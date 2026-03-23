@@ -1,9 +1,11 @@
 # Taskly — DevOps Roadmap Tracker
 
-Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL stack'i, Docker Compose ile orkestre edilmiş, Cloudflare arkasında Contabo VPS üzerinde çalışmaktadır.
+Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL stack'i, GitHub Actions ile CI/CD pipeline'ı üzerinden ghcr.io'ya build edilip, Contabo VPS üzerinde Docker Compose ile çalıştırılmaktadır. Sunucuda kaynak kod bulunmaz — sadece imajlar registry'den çekilir.
 
 - **Domain:** heavezz.uk
 - **Sunucu:** Contabo VPS — Linux amd64
+- **Registry:** GitHub Container Registry (ghcr.io)
+- **CI/CD:** GitHub Actions
 - **Repo:** github.com/HeaveZ/devops-roadmap
 
 ---
@@ -11,6 +13,7 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
 ## İçindekiler
 
 - [Mimari](#mimari)
+- [CI/CD Pipeline](#cicd-pipeline)
 - [Containerlar](#containerlar)
 - [Frontend](#frontend)
 - [Backend & API](#backend--api)
@@ -19,8 +22,7 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
 - [AWS S3](#aws-s3)
 - [Cloudflare](#cloudflare)
 - [Güvenlik](#güvenlik)
-- [Multi-Arch Build](#multi-arch-build)
-- [DevOps Komutları](#devops-komutları)
+- [Sunucu Yönetimi](#sunucu-yönetimi)
 - [Dosya Yapısı](#dosya-yapısı)
 
 ---
@@ -63,28 +65,47 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
              └─────────────┘
 ```
 
-**Trafik akışı (uçtan uca):**
+---
 
-1. Kullanıcı `heavezz.uk`'ye girer
-2. DNS → Cloudflare → SSL terminate
-3. Cloudflare → Contabo VPS :80
-4. Nginx request'i alır
-5. `/` → Frontend container (React SPA)
-5. `/api/*` → Backend container (Node.js)
-6. Backend → PostgreSQL (veri okuma/yazma)
-7. Backend → AWS S3 (dosya upload/download — presigned URL)
+## CI/CD Pipeline
+
+Kaynak kod sadece GitHub'da bulunur. Sunucuda kaynak kod yoktur. İmajlar GitHub Actions tarafından build edilip ghcr.io'ya push edilir, sunucu sadece imajları çeker.
+
+```
+GitHub Repo              GitHub Actions            ghcr.io              Sunucu
+┌───────────────┐       ┌────────────────┐       ┌──────────────┐     ┌──────────────┐
+│ Kaynak kod    │─push─▶│ Build & Push   │──────▶│ backend:latest│─pull▶│ docker-compose│
+│ Dockerfile    │       │ (her push'ta)  │      │ frontend:latest│     │ .env          │
+│ workflow.yml  │       └────────────────┘       └──────────────┘     │ nginx.conf    │
+└───────────────┘                                                     └──────────────┘
+```
+
+**Akış:**
+
+1. Geliştirici kodu GitHub'a push eder
+2. GitHub Actions otomatik tetiklenir (`.github/workflows/build-and-push.yml`)
+3. Backend ve frontend imajları **paralel** olarak build edilir
+4. İmajlar ghcr.io'ya push edilir:
+   - `ghcr.io/heavez/devops-roadmap/backend:latest`
+   - `ghcr.io/heavez/devops-roadmap/frontend:latest`
+5. Sunucuda `docker compose pull && docker compose up -d` ile güncelleme yapılır
+
+**Workflow özellikleri:**
+- `master` branch'e her push'ta tetiklenir
+- `GITHUB_TOKEN` ile ghcr.io'ya otomatik auth
+- Her imaja `latest` + commit SHA tag'i verilir
 
 ---
 
 ## Containerlar
 
-4 container, Docker Compose ile yönetilmektedir.
+4 container, Docker Compose ile yönetilmektedir. Tüm uygulama imajları ghcr.io'dan çekilir.
 
 | Container | Image | Port | Rol | Restart |
 |---|---|---|---|---|
 | heavezz-nginx-1 | nginx:alpine | 80, 443 → host | Reverse proxy | always |
-| heavezz-frontend-1 | heavezz-frontend | 80 (internal) | React SPA | always |
-| heavezz-backend-1 | heavezz-backend | 5000 (internal) | Node.js REST API | always |
+| heavezz-frontend-1 | ghcr.io/heavez/devops-roadmap/frontend:latest | 80 (internal) | React SPA | always |
+| heavezz-backend-1 | ghcr.io/heavez/devops-roadmap/backend:latest | 5000 (internal) | Node.js REST API | always |
 | heavezz-db-1 | postgres:15 | 5432 (internal) | Veritabanı | always |
 
 > **Başlatma sırası (depends_on):** `db → backend → frontend → nginx`
@@ -116,7 +137,7 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
 
 ## Backend & API
 
-**Teknoloji:** Node.js, Express 5.2.1  
+**Teknoloji:** Node.js, Express 5.2.1
 **Dockerfile:** Single-stage build (`node:18-alpine`)
 
 ### Bağımlılıklar
@@ -157,7 +178,7 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
 
 ## Veritabanı
 
-**Teknoloji:** PostgreSQL 15  
+**Teknoloji:** PostgreSQL 15
 **Persistent storage:** Docker named volume → `heavezz_pgdata`
 
 ### Şema
@@ -233,8 +254,8 @@ Hem frontend SPA'yı serve eder hem de API isteklerini backend'e yönlendirir.
 
 ## AWS S3
 
-**Bucket:** `heavezz-images`  
-**Bölge:** `eu-north-1` (Stockholm)  
+**Bucket:** `heavezz-images`
+**Bölge:** `eu-north-1` (Stockholm)
 **Erişim:** IAM kullanıcısı, `AmazonS3FullAccess` policy
 
 | Özellik | Detay |
@@ -268,39 +289,21 @@ Hem frontend SPA'yı serve eder hem de API isteklerini backend'e yönlendirir.
 | Secrets | `.env` dosyasında, `.gitignore`'da — repo'ya gitmiyor |
 | JWT Secret | Environment variable'dan okunuyor |
 | Dosya upload | 10MB limit, presigned URL (1 saat TTL) |
+| Kaynak kod | Sunucuda kaynak kod bulunmaz, sadece container imajları |
 
 ---
 
-## Multi-Arch Build
+## Sunucu Yönetimi
 
-`docker buildx` ile hem **linux/amd64** (Contabo) hem **linux/arm64** (Apple Silicon) desteklenmektedir.
-
-**Registry:** GitHub Container Registry (`ghcr.io`)
-
-| Image | Platform |
-|---|---|
-| `ghcr.io/heavez/devops-backend:latest` | linux/amd64 + linux/arm64 |
-| `ghcr.io/heavez/devops-frontend:latest` | linux/amd64 + linux/arm64 |
+Sunucuda kaynak kod yoktur. Tüm yönetim Docker Compose üzerinden yapılır.
 
 ```bash
-# Multi-arch build + push
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/heavez/devops-backend:latest --push ./backend/
-```
+# ghcr.io'ya login (ilk seferde)
+echo $GITHUB_TOKEN | docker login ghcr.io -u HeaveZ --password-stdin
 
----
-
-## DevOps Komutları
-
-```bash
-# Tüm servisleri başlat
+# İmajları güncelle ve başlat
+docker compose pull
 docker compose up -d
-
-# Rebuild ile başlat (kod değişikliği sonrası)
-docker compose up -d --build
-
-# Sadece tek servis rebuild
-docker compose up -d --build frontend
 
 # Logları izle
 docker compose logs -f backend
@@ -322,24 +325,36 @@ docker compose down -v
 
 ## Dosya Yapısı
 
+### GitHub Reposu (kaynak kod)
 ```
-/opt/heavezz/
-├── .env                    ← Tüm secretlar (gitignore'da)
-├── .gitignore
-├── docker-compose.yml      ← 4 container orkestrasyon tanımı
+devops-roadmap/
+├── .github/
+│   └── workflows/
+│       └── build-and-push.yml  ← CI/CD: build & push to ghcr.io
 ├── backend/
-│   ├── Dockerfile          ← node:18-alpine, single-stage
+│   ├── Dockerfile              ← node:18-alpine, single-stage
 │   ├── package.json
-│   └── server.js           ← Tüm API + DB init
+│   └── server.js               ← Tüm API + DB init
 ├── frontend/
-│   ├── Dockerfile          ← Multi-stage (build + nginx serve)
+│   ├── Dockerfile              ← Multi-stage (build + nginx serve)
 │   ├── package.json
 │   ├── public/
-│   │   ├── index.html      ← Title: Taskly
-│   │   └── manifest.json   ← PWA manifest
+│   │   ├── index.html
+│   │   └── manifest.json
 │   └── src/
-│       ├── App.js          ← Tüm UI mantığı
-│       └── App.css         ← Tüm stiller
+│       ├── App.js              ← Tüm UI mantığı
+│       └── App.css             ← Tüm stiller
+├── docker-compose.yml
+├── nginx/
+│   └── nginx.conf
+└── README.md
+```
+
+### Sunucu (production — kaynak kod yok)
+```
+/opt/heavezz/
+├── docker-compose.yml          ← ghcr.io'dan imajları çeker
+├── .env                        ← Tüm secretlar
 └── nginx/
-    └── nginx.conf          ← Reverse proxy config
+    └── nginx.conf              ← Reverse proxy config
 ```
