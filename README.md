@@ -27,45 +27,6 @@ Görev takibi ve DevOps yol haritası uygulaması. React + Node.js + PostgreSQL 
 
 ---
 
-## Mimari
-
-```
-                        INTERNET
-                           │
-                    ┌──────┴──────┐
-                    │  Cloudflare  │
-                    │  DNS + CDN   │
-                    │  SSL/TLS     │
-                    │  DDoS Koruma │
-                    └──────┬──────┘
-                           │ :80 / :443
-                    Contabo VPS
-                           │
-              ┌────────────┴────────────┐
-              │      Docker Network      │
-              │                          │
-         ┌────┴─────────┐               │
-         │  Nginx        │               │
-         │  Reverse Proxy│               │
-         │  Port 80/443  │               │
-         └──┬────────┬──┘               │
-            │        │                   │
-           /        /api/*               │
-            │        │                   │
-      ┌─────┴──┐ ┌──┴──────┐ ┌─────────┴──┐
-      │Frontend│ │ Backend  │ │ PostgreSQL  │
-      │React   │ │ Node.js  │ │ pg:5432     │
-      │:80     │ │ :5000    │ └────────────┘
-      └────────┘ └──┬──────┘
-                    │
-             ┌──────┴──────┐
-             │   AWS S3     │
-             │ eu-north-1   │
-             │heavezz-images│
-             └─────────────┘
-```
-
----
 
 ## CI/CD Pipeline
 
