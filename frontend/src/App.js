@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
+const APP_VERSION = process.env.REACT_APP_VERSION || '1.1.0';
 
 function getLevelClass(level) {
   if (!level) return 'temel';
@@ -51,6 +52,9 @@ export default function App() {
   const [showSubtaskForm, setShowSubtaskForm] = useState({});
   const [showComments, setShowComments] = useState({});
   const [commentInput, setCommentInput] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterSection, setFilterSection] = useState('all');
 
   // Auth state
   const [token, setToken] = useState(() => localStorage.getItem('devops_token') || '');
@@ -438,7 +442,24 @@ export default function App() {
     return true;
   });
 
-  const grouped = groupBySection(filtered);
+  const filteredTasks = filtered.filter(t => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!(t.title || t.name || '').toLowerCase().includes(q)) return false;
+    }
+    if (filterStatus === 'active' && t.completed) return false;
+    if (filterStatus === 'completed' && !t.completed) return false;
+    if (filterSection !== 'all') {
+      const sec = t.section || t.category || 'Genel';
+      if (sec !== filterSection) return false;
+    }
+    return true;
+  });
+
+  const allSections = [...new Set(tasks.map(t => t.section || t.category || 'Genel'))];
+  const activeFilters = searchQuery !== '' || filterStatus !== 'all' || filterSection !== 'all';
+
+  const grouped = groupBySection(filteredTasks);
   const allSubtasks = tasks.flatMap(t => t.subtasks || []);
   const totalItems = tasks.length + allSubtasks.length;
   const doneItems = tasks.filter(t => t.completed).length + allSubtasks.filter(st => st.completed).length;
@@ -609,6 +630,60 @@ export default function App() {
             </button>
           ))}
         </div>
+
+        <div className="filter-bar">
+          <div className="filter-search-wrapper">
+            <input
+              type="text"
+              className="filter-search"
+              placeholder="Görev ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="filter-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+            )}
+          </div>
+          <button
+            className={`filter-chip ${filterStatus === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('all')}
+          >Tümü</button>
+          <button
+            className={`filter-chip ${filterStatus === 'active' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('active')}
+          >Devam Eden</button>
+          <button
+            className={`filter-chip ${filterStatus === 'completed' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('completed')}
+          >Tamamlanan</button>
+          {allSections.length > 1 && (
+            <select
+              className="filter-select"
+              value={filterSection}
+              onChange={(e) => setFilterSection(e.target.value)}
+            >
+              <option value="all">Tüm Bölümler</option>
+              {allSections.map(sec => (
+                <option key={sec} value={sec}>{sec}</option>
+              ))}
+            </select>
+          )}
+          {activeFilters && (
+            <span className="filter-result-info">
+              {filteredTasks.length} sonuç
+            </span>
+          )}
+          {activeFilters && (
+            <button
+              className="filter-reset"
+              onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterSection('all'); }}
+            >Filtreleri Temizle</button>
+          )}
+        </div>
+
+        {!loading && !error && isLoggedIn && activeFilters && filteredTasks.length === 0 && (
+          <div className="filter-empty">Aramanızla eşleşen görev bulunamadı</div>
+        )}
 
         {loading && isLoggedIn && (
           <div className="loading-screen">
@@ -844,7 +919,10 @@ export default function App() {
           </div>
         )}
 
-        <div className="created-by">created by HeaveZ :)</div>
+        <div className="created-by">
+          created by HeaveZ :)
+          <span style={{ fontSize: '11px', opacity: 0.4, marginLeft: '12px' }}>v{APP_VERSION}</span>
+        </div>
       </div>
     </div>
   );
