@@ -82,5 +82,6 @@ jobs:
           script: |
             cd /opt/heavezz
             export IMAGE_TAG=${{ github.ref_name }}
+            docker compose down --remove-orphans
             docker compose pull
             docker compose up -d
