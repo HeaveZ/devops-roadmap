@@ -123,6 +123,11 @@ async function initDB() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data TEXT
     `);
 
+    // Priority kolonu ekle
+    await pool.query(`
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'none'
+    `);
+
     // Dosyalar tablosu
     await pool.query(`
       CREATE TABLE IF NOT EXISTS files (
@@ -441,14 +446,33 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
   }
 });
 
-// Görev durumunu güncelle (tamamlandı işaretleme)
+// Görev durumunu güncelle (tamamlandı işaretleme + priority)
 app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { completed } = req.body;
+    const { completed, priority } = req.body;
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    if (completed !== undefined) {
+      updates.push(`completed = $${idx++}`);
+      values.push(completed);
+    }
+    if (priority !== undefined) {
+      const validPriorities = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ error: "Geçersiz öncelik değeri" });
+      }
+      updates.push(`priority = $${idx++}`);
+      values.push(priority);
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Güncellenecek alan belirtilmedi" });
+    }
+    values.push(id);
     const { rows } = await pool.query(
-      "UPDATE tasks SET completed = $1 WHERE id = $2 RETURNING *",
-      [completed, id]
+      `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: "Görev bulunamadı" });

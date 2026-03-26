@@ -649,6 +649,54 @@ body {
   border: 1px solid rgba(244,67,54,0.3);
 }
 
+/* PRIORITY BADGES */
+.priority-badge {
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-family: 'Syne', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+.priority-badge:hover {
+  transform: scale(1.08);
+  filter: brightness(1.2);
+}
+.priority-badge.none {
+  background: rgba(123,155,191,0.08);
+  color: var(--muted);
+  border: 1px solid rgba(123,155,191,0.2);
+}
+.priority-badge.priority-dusuk {
+  background: rgba(33,150,243,0.12);
+  color: #64B5F6;
+  border: 1px solid rgba(33,150,243,0.35);
+}
+.priority-badge.priority-orta {
+  background: rgba(255,193,7,0.12);
+  color: #FFD54F;
+  border: 1px solid rgba(255,193,7,0.35);
+}
+.priority-badge.priority-yuksek {
+  background: rgba(255,109,0,0.12);
+  color: var(--orange-soft);
+  border: 1px solid rgba(255,109,0,0.35);
+}
+.priority-badge.priority-kritik {
+  background: rgba(244,67,54,0.15);
+  color: #EF5350;
+  border: 1px solid rgba(244,67,54,0.4);
+  animation: kritikPulse 2s ease-in-out infinite;
+}
+@keyframes kritikPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244,67,54,0); }
+  50% { box-shadow: 0 0 8px 2px rgba(244,67,54,0.25); }
+}
+
 /* ACTION BUTTONS */
 .action-btn {
   width: 30px;
