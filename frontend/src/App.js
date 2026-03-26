@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
-const APP_VERSION = process.env.REACT_APP_VERSION || '1.2.0';
+const APP_VERSION = process.env.REACT_APP_VERSION || '1.3.0';
 
 const PRIORITIES = [
   { key: 'none', label: '-', color: 'none' },
@@ -506,6 +506,22 @@ export default function App() {
   const doneCount = tasks.filter(t => t.completed).length;
   const total = tasks.length;
 
+  // Dashboard istatistikleri
+  const sectionStats = allSections.map(sec => {
+    const secTasks = tasks.filter(t => (t.section || t.category || 'Genel') === sec);
+    const secDone = secTasks.filter(t => t.completed).length;
+    return { name: sec, total: secTasks.length, done: secDone, pct: secTasks.length > 0 ? Math.round((secDone / secTasks.length) * 100) : 0 };
+  });
+
+  const priorityStats = {
+    kritik: tasks.filter(t => t.priority === 'kritik').length,
+    yuksek: tasks.filter(t => t.priority === 'yuksek').length,
+    orta: tasks.filter(t => t.priority === 'orta').length,
+    dusuk: tasks.filter(t => t.priority === 'dusuk').length,
+    none: tasks.filter(t => !t.priority || t.priority === 'none').length,
+  };
+  const maxSectionTasks = Math.max(...sectionStats.map(s => s.total), 1);
+
   return (
     <div className="app">
       <div className="grid-bg" />
@@ -653,6 +669,90 @@ export default function App() {
             <div className="progress-fill" style={{ width: `${Math.max(pct, 2)}%` }} />
           </div>
         </div>
+
+        {/* DASHBOARD */}
+        {total > 0 && (
+        <div className="dashboard">
+          <div className="dashboard-header">
+            <span className="dashboard-title">ISTATISTIKLER</span>
+          </div>
+          <div className="dashboard-grid">
+            {/* Bölüm Bazlı İlerleme */}
+            <div className="dash-card">
+              <div className="dash-card-title">Bolum Ilerleme</div>
+              <div className="dash-bars">
+                {sectionStats.map(s => (
+                  <div key={s.name} className="dash-bar-row">
+                    <span className="dash-bar-label" title={s.name}>{s.name}</span>
+                    <div className="dash-bar-track">
+                      <div
+                        className="dash-bar-fill"
+                        style={{ width: `${Math.max(s.pct, 2)}%` }}
+                      />
+                    </div>
+                    <span className="dash-bar-value">{s.done}/{s.total}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Öncelik Dağılımı */}
+            <div className="dash-card">
+              <div className="dash-card-title">Oncelik Dagilimi</div>
+              <div className="dash-priority-chart">
+                {[
+                  { key: 'kritik', label: 'Kritik', color: '#EF5350' },
+                  { key: 'yuksek', label: 'Yuksek', color: '#FF8C00' },
+                  { key: 'orta', label: 'Orta', color: '#FFD54F' },
+                  { key: 'dusuk', label: 'Dusuk', color: '#64B5F6' },
+                  { key: 'none', label: 'Belirsiz', color: '#7B9BBF' },
+                ].map(p => (
+                  <div key={p.key} className="dash-priority-row">
+                    <span className="dash-priority-dot" style={{ background: p.color }} />
+                    <span className="dash-priority-label">{p.label}</span>
+                    <div className="dash-priority-bar-track">
+                      <div
+                        className="dash-priority-bar-fill"
+                        style={{
+                          width: total > 0 ? `${Math.max((priorityStats[p.key] / total) * 100, priorityStats[p.key] > 0 ? 4 : 0)}%` : '0%',
+                          background: p.color,
+                        }}
+                      />
+                    </div>
+                    <span className="dash-priority-count">{priorityStats[p.key]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bölüm Görev Sayıları - Bar Chart */}
+            <div className="dash-card dash-card-wide">
+              <div className="dash-card-title">Bolum Bazli Gorev Sayisi</div>
+              <div className="dash-column-chart">
+                {sectionStats.map(s => (
+                  <div key={s.name} className="dash-col-item">
+                    <div className="dash-col-bar-wrapper">
+                      <div
+                        className="dash-col-bar-done"
+                        style={{ height: `${(s.done / maxSectionTasks) * 100}%` }}
+                      />
+                      <div
+                        className="dash-col-bar-remaining"
+                        style={{ height: `${((s.total - s.done) / maxSectionTasks) * 100}%` }}
+                      />
+                    </div>
+                    <span className="dash-col-label" title={s.name}>{s.name.length > 8 ? s.name.slice(0, 7) + '..' : s.name}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="dash-chart-legend">
+                <span className="dash-legend-item"><span className="dash-legend-dot done" /> Tamamlanan</span>
+                <span className="dash-legend-item"><span className="dash-legend-dot remaining" /> Kalan</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
 
         <div className="tabs">
           {[
