@@ -2,7 +2,24 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
-const APP_VERSION = process.env.REACT_APP_VERSION || '1.1.0';
+const APP_VERSION = process.env.REACT_APP_VERSION || '1.2.0';
+
+const PRIORITIES = [
+  { key: 'none', label: '-', color: 'none' },
+  { key: 'dusuk', label: 'Düşük', color: 'priority-dusuk' },
+  { key: 'orta', label: 'Orta', color: 'priority-orta' },
+  { key: 'yuksek', label: 'Yüksek', color: 'priority-yuksek' },
+  { key: 'kritik', label: 'Kritik', color: 'priority-kritik' },
+];
+
+function getPriorityInfo(priority) {
+  return PRIORITIES.find(p => p.key === priority) || PRIORITIES[0];
+}
+
+function getNextPriority(current) {
+  const idx = PRIORITIES.findIndex(p => p.key === current);
+  return PRIORITIES[(idx + 1) % PRIORITIES.length].key;
+}
 
 function getLevelClass(level) {
   if (!level) return 'temel';
@@ -55,6 +72,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSection, setFilterSection] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
 
   // Auth state
   const [token, setToken] = useState(() => localStorage.getItem('devops_token') || '');
@@ -320,6 +338,24 @@ export default function App() {
     }
   };
 
+  const cyclePriority = async (task) => {
+    const newPriority = getNextPriority(task.priority || 'none');
+    setTasks(prev => prev.map(t =>
+      t.id === task.id ? { ...t, priority: newPriority } : t
+    ));
+    try {
+      await authFetch(`${API_URL}/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority: newPriority }),
+      });
+    } catch {
+      setTasks(prev => prev.map(t =>
+        t.id === task.id ? { ...t, priority: task.priority } : t
+      ));
+    }
+  };
+
   const toggleExpand = (taskId) => {
     setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
   };
@@ -453,11 +489,14 @@ export default function App() {
       const sec = t.section || t.category || 'Genel';
       if (sec !== filterSection) return false;
     }
+    if (filterPriority !== 'all') {
+      if ((t.priority || 'none') !== filterPriority) return false;
+    }
     return true;
   });
 
   const allSections = [...new Set(tasks.map(t => t.section || t.category || 'Genel'))];
-  const activeFilters = searchQuery !== '' || filterStatus !== 'all' || filterSection !== 'all';
+  const activeFilters = searchQuery !== '' || filterStatus !== 'all' || filterSection !== 'all' || filterPriority !== 'all';
 
   const grouped = groupBySection(filteredTasks);
   const allSubtasks = tasks.flatMap(t => t.subtasks || []);
@@ -668,6 +707,18 @@ export default function App() {
               ))}
             </select>
           )}
+          <select
+            className="filter-select"
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+          >
+            <option value="all">Tüm Öncelikler</option>
+            <option value="kritik">Kritik</option>
+            <option value="yuksek">Yüksek</option>
+            <option value="orta">Orta</option>
+            <option value="dusuk">Düşük</option>
+            <option value="none">Belirsiz</option>
+          </select>
           {activeFilters && (
             <span className="filter-result-info">
               {filteredTasks.length} sonuç
@@ -676,7 +727,7 @@ export default function App() {
           {activeFilters && (
             <button
               className="filter-reset"
-              onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterSection('all'); }}
+              onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterSection('all'); setFilterPriority('all'); }}
             >Filtreleri Temizle</button>
           )}
         </div>
@@ -730,6 +781,18 @@ export default function App() {
                           <span className="subtask-count">{subDone}/{subtasks.length}</span>
                         )}
                         <div className="task-actions">
+                          {(() => {
+                            const pri = getPriorityInfo(task.priority || 'none');
+                            return (
+                              <span
+                                className={`priority-badge ${pri.color}`}
+                                onClick={(e) => { e.stopPropagation(); cyclePriority(task); }}
+                                title="Öncelik değiştirmek için tıkla"
+                              >
+                                {pri.key === 'none' ? '◇' : '◆'} {pri.label}
+                              </span>
+                            );
+                          })()}
                           <span className={`badge ${getLevelClass(task.level || task.difficulty)}`}>
                             {getLevelLabel(task.level || task.difficulty)}
                           </span>
