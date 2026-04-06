@@ -393,8 +393,8 @@ app.get("/api/avatar/:username", async (req, res) => {
   }
 });
 
-// Tüm görevleri getir (subtask'larla birlikte)
-app.get("/api/tasks", authMiddleware, async (req, res) => {
+// Tüm görevleri getir (subtask'larla birlikte) - misafir erisime acik
+app.get("/api/tasks", async (req, res) => {
   try {
     const { rows: tasks } = await pool.query(
       "SELECT * FROM tasks ORDER BY section, id"

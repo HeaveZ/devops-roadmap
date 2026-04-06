@@ -78,6 +78,7 @@ export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('devops_token') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('devops_username') || '');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('devops_token'));
+  const [isGuest, setIsGuest] = useState(false);
   const [avatarData, setAvatarData] = useState(() => localStorage.getItem('devops_avatar') || '');
   const fileInputRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -108,6 +109,7 @@ export default function App() {
     setUsername('');
     setAvatarData('');
     setIsLoggedIn(false);
+    setIsGuest(false);
     setTasks([]);
     setLoginError('');
   }, []);
@@ -124,6 +126,12 @@ export default function App() {
     }
     return res;
   }, [token, handleLogout]);
+
+  const handleSkip = () => {
+    setIsGuest(true);
+    setIsLoggedIn(true);
+    setLoginError('');
+  };
 
   const handleLogin = async () => {
     if (!loginUsername.trim() || !loginPassword.trim()) return;
@@ -299,28 +307,30 @@ export default function App() {
   const isImageFile = (mimetype) => mimetype && mimetype.startsWith('image/');
 
   useEffect(() => {
-    if (isLoggedIn && token && view === 'files') {
+    if (isLoggedIn && !isGuest && token && view === 'files') {
       fetchFiles();
     }
-  }, [isLoggedIn, token, view, fetchFiles]);
+  }, [isLoggedIn, isGuest, token, view, fetchFiles]);
 
   useEffect(() => {
-    if (!isLoggedIn || !token) {
+    if (!isLoggedIn) {
       setLoading(false);
       return;
     }
-    authFetch(`${API_URL}/api/tasks`)
-      .then(r => r.json())
+    const req = isGuest
+      ? fetch(`${API_URL}/api/tasks`).then(r => r.json())
+      : authFetch(`${API_URL}/api/tasks`).then(r => r.json());
+    req
       .then(data => {
         setTasks(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
-        if (err.message.includes('Oturum')) return;
+        if (err.message && err.message.includes('Oturum')) return;
         setError('Backend\'e baglanamadi. Lutfen tekrar deneyin.');
         setLoading(false);
       });
-  }, [isLoggedIn, token, authFetch]);
+  }, [isLoggedIn, isGuest, token, authFetch]);
 
   const toggleTask = async (task) => {
     const updated = tasks.map(t =>
@@ -554,6 +564,9 @@ export default function App() {
             <button className="popup-btn" onClick={handleLogin} disabled={loginLoading}>
               {loginLoading ? 'Giris yapiliyor...' : 'Giris Yap'}
             </button>
+            <button className="popup-btn-skip" onClick={handleSkip}>
+              Atla
+            </button>
           </div>
         </div>
       )}
@@ -602,7 +615,18 @@ export default function App() {
               <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
               <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
             </div>
-            {username && isLoggedIn && (
+            {isGuest && (
+              <div className="guest-badge-area">
+                <div className="guest-badge">
+                  <span className="guest-icon">👁</span>
+                  <span className="guest-label">Misafir</span>
+                </div>
+                <button className="guest-login-btn" onClick={handleLogout}>
+                  Giris Yap
+                </button>
+              </div>
+            )}
+            {username && isLoggedIn && !isGuest && (
               <div className="user-badge-area" ref={userMenuRef}>
                 <input
                   type="file"
@@ -871,10 +895,10 @@ export default function App() {
                   <div className="task-wrapper" key={task.id}>
                     <div className="task-left">
                       <div className={`task ${task.completed ? 'done' : ''}`}>
-                        <div className="chk" onClick={(e) => { e.stopPropagation(); toggleTask(task); }}>
+                        <div className="chk" onClick={(e) => { if (isGuest) return; e.stopPropagation(); toggleTask(task); }} style={isGuest ? { cursor: 'not-allowed', opacity: 0.5 } : {}}>
                           {task.completed ? '✓' : ''}
                         </div>
-                        <span className="task-name" onClick={() => toggleTask(task)}>
+                        <span className="task-name" onClick={() => { if (!isGuest) toggleTask(task); }} style={isGuest ? { cursor: 'default' } : {}}>
                           {task.title || task.name}
                         </span>
                         {subtasks.length > 0 && (
@@ -886,8 +910,9 @@ export default function App() {
                             return (
                               <span
                                 className={`priority-badge ${pri.color}`}
-                                onClick={(e) => { e.stopPropagation(); cyclePriority(task); }}
-                                title="Öncelik değiştirmek için tıkla"
+                                onClick={(e) => { if (isGuest) return; e.stopPropagation(); cyclePriority(task); }}
+                                title={isGuest ? 'Oncelik degistirmek icin giris yapin' : 'Öncelik değiştirmek için tıkla'}
+                                style={isGuest ? { cursor: 'not-allowed' } : {}}
                               >
                                 {pri.key === 'none' ? '◇' : '◆'} {pri.label}
                               </span>
@@ -918,18 +943,20 @@ export default function App() {
                         <div className="subtask-area">
                           {subtasks.map(st => (
                             <div key={st.id} className={`subtask ${st.completed ? 'done' : ''}`}>
-                              <div className="chk" onClick={() => toggleSubtask(task.id, st)}>
+                              <div className="chk" onClick={() => { if (!isGuest) toggleSubtask(task.id, st); }} style={isGuest ? { cursor: 'not-allowed', opacity: 0.5 } : {}}>
                                 {st.completed ? '✓' : ''}
                               </div>
                               <span className="subtask-name">{st.title}</span>
-                              <button
-                                className="subtask-delete-btn"
-                                onClick={() => deleteSubtask(task.id, st.id)}
-                                title="Sil"
-                              >×</button>
+                              {!isGuest && (
+                                <button
+                                  className="subtask-delete-btn"
+                                  onClick={() => deleteSubtask(task.id, st.id)}
+                                  title="Sil"
+                                >×</button>
+                              )}
                             </div>
                           ))}
-                          {showSubtaskForm[task.id] ? (
+                          {!isGuest && (showSubtaskForm[task.id] ? (
                             <div className="subtask-form">
                               <input
                                 className="subtask-input"
@@ -950,7 +977,7 @@ export default function App() {
                             <button className="add-subtask-btn" onClick={() => toggleSubtaskForm(task.id)}>
                               + Alt gorev ekle
                             </button>
-                          )}
+                          ))}
                         </div>
                       )}
                     </div>
@@ -971,31 +998,39 @@ export default function App() {
                               <span className="comment-date">{formatFullDate(c.created_at)}</span>
                             </div>
                             <div className="comment-text">{c.text}</div>
-                            <button
-                              className="comment-delete-btn"
-                              onClick={() => deleteComment(task.id, c.id)}
-                              title="Sil"
-                            >
-                              ×
-                            </button>
+                            {!isGuest && (
+                              <button
+                                className="comment-delete-btn"
+                                onClick={() => deleteComment(task.id, c.id)}
+                                title="Sil"
+                              >
+                                ×
+                              </button>
+                            )}
                           </div>
                         ))}
-                        <div className="comment-form">
-                          <span className="comment-form-avatar">
-                            {avatarData ? <img src={avatarData} alt="avatar" /> : (username || 'A').charAt(0).toUpperCase()}
-                          </span>
-                          <input
-                            className="comment-input"
-                            type="text"
-                            placeholder={`${username || 'Anonim'} olarak yorum yaz...`}
-                            value={commentInput[task.id] || ''}
-                            onChange={(e) => setCommentInput(prev => ({ ...prev, [task.id]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === 'Enter') createComment(task.id); }}
-                          />
-                          <button className="comment-send-btn" onClick={() => createComment(task.id)}>
-                            Gonder
-                          </button>
-                        </div>
+                        {isGuest ? (
+                          <div className="guest-comment-notice">
+                            Yorum yazmak icin <button className="guest-inline-login" onClick={handleLogout}>giris yapin</button>
+                          </div>
+                        ) : (
+                          <div className="comment-form">
+                            <span className="comment-form-avatar">
+                              {avatarData ? <img src={avatarData} alt="avatar" /> : (username || 'A').charAt(0).toUpperCase()}
+                            </span>
+                            <input
+                              className="comment-input"
+                              type="text"
+                              placeholder={`${username || 'Anonim'} olarak yorum yaz...`}
+                              value={commentInput[task.id] || ''}
+                              onChange={(e) => setCommentInput(prev => ({ ...prev, [task.id]: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === 'Enter') createComment(task.id); }}
+                            />
+                            <button className="comment-send-btn" onClick={() => createComment(task.id)}>
+                              Gonder
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1009,26 +1044,32 @@ export default function App() {
 
         {view === 'files' && (
           <div className="files-section">
-            <div
-              className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => uploadInputRef.current?.click()}
-            >
-              <input
-                type="file"
-                ref={uploadInputRef}
-                style={{ display: 'none' }}
-                multiple
-                onChange={(e) => { handleFileUpload(e.target.files); e.target.value = ''; }}
-              />
-              <div className="upload-icon">{uploading ? '...' : '+'}</div>
-              <div className="upload-text">
-                {uploading ? 'Yukleniyor...' : 'Dosya yuklemek icin tikla veya surukle'}
+            {isGuest ? (
+              <div className="guest-files-notice">
+                Dosya yuklemek icin <button className="guest-inline-login" onClick={handleLogout}>giris yapin</button>
               </div>
-              <div className="upload-hint">Maks. 10MB</div>
-            </div>
+            ) : (
+              <div
+                className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onClick={() => uploadInputRef.current?.click()}
+              >
+                <input
+                  type="file"
+                  ref={uploadInputRef}
+                  style={{ display: 'none' }}
+                  multiple
+                  onChange={(e) => { handleFileUpload(e.target.files); e.target.value = ''; }}
+                />
+                <div className="upload-icon">{uploading ? '...' : '+'}</div>
+                <div className="upload-text">
+                  {uploading ? 'Yukleniyor...' : 'Dosya yuklemek icin tikla veya surukle'}
+                </div>
+                <div className="upload-hint">Maks. 10MB</div>
+              </div>
+            )}
 
             {filesLoading && (
               <div className="loading-screen">
@@ -1070,9 +1111,11 @@ export default function App() {
                         <a href={f.url} target="_blank" rel="noopener noreferrer" className="file-btn-download" title="Indir">
                           Indir
                         </a>
-                        <button className="file-btn-delete" onClick={() => deleteFile(f.id)} title="Sil">
-                          Sil
-                        </button>
+                        {!isGuest && (
+                          <button className="file-btn-delete" onClick={() => deleteFile(f.id)} title="Sil">
+                            Sil
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
