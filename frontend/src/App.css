@@ -126,6 +126,94 @@ body {
   cursor: not-allowed;
   transform: none;
 }
+.popup-btn-skip {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 13px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+  letter-spacing: 0.05em;
+}
+.popup-btn-skip:hover {
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.04);
+}
+.guest-badge-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.guest-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 6px 14px;
+}
+.guest-icon {
+  font-size: 14px;
+}
+.guest-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.05em;
+}
+.guest-login-btn {
+  background: linear-gradient(135deg, var(--blue-dim), var(--blue));
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  color: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+.guest-login-btn:hover {
+  background: linear-gradient(135deg, var(--blue), var(--blue-bright));
+  box-shadow: 0 4px 16px rgba(33,150,243,0.3);
+}
+.guest-comment-notice {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+}
+.guest-inline-login {
+  background: none;
+  border: none;
+  color: var(--blue);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.guest-inline-login:hover {
+  color: var(--blue-bright);
+}
+.guest-files-notice {
+  padding: 40px;
+  text-align: center;
+  font-size: 14px;
+  color: rgba(255,255,255,0.35);
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
 .popup-input[type="password"] {
   letter-spacing: 0.15em;
 }
