@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
-const APP_VERSION = process.env.REACT_APP_VERSION || '1.3.0';
+const APP_VERSION = process.env.REACT_APP_VERSION || '2.0.0';
 
 const PRIORITIES = [
   { key: 'none', label: '-', color: 'none' },
@@ -59,6 +59,16 @@ function formatFullDate(dateStr) {
   return `${gun}.${ay}.${yil} ${saat}:${dk}:${sn}`;
 }
 
+function guestTrack(action, details) {
+  try {
+    fetch(`${API_URL}/api/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, details }),
+    }).catch(() => {});
+  } catch {}
+}
+
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,8 +87,7 @@ export default function App() {
   // Auth state
   const [token, setToken] = useState(() => localStorage.getItem('devops_token') || '');
   const [username, setUsername] = useState(() => localStorage.getItem('devops_username') || '');
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('devops_token'));
-  const [isGuest, setIsGuest] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [avatarData, setAvatarData] = useState(() => localStorage.getItem('devops_avatar') || '');
   const fileInputRef = useRef(null);
   const userMenuRef = useRef(null);
@@ -88,10 +97,16 @@ export default function App() {
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Auth modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authStep, setAuthStep] = useState('credentials');
+  const [authCode, setAuthCode] = useState('');
 
   // Files state
   const [view, setView] = useState('tasks');
@@ -109,9 +124,6 @@ export default function App() {
     setUsername('');
     setAvatarData('');
     setIsLoggedIn(false);
-    setIsGuest(false);
-    setTasks([]);
-    setLoginError('');
   }, []);
 
   const authFetch = useCallback(async (url, options = {}) => {
@@ -127,47 +139,98 @@ export default function App() {
     return res;
   }, [token, handleLogout]);
 
-  const handleSkip = () => {
-    setIsGuest(true);
-    setIsLoggedIn(true);
-    setLoginError('');
-  };
+  // Token dogrulama (sayfa yuklendiginde)
+  useEffect(() => {
+    const savedToken = localStorage.getItem('devops_token');
+    if (!savedToken) return;
+    fetch(`${API_URL}/auth/verify`, {
+      headers: { 'Authorization': `Bearer ${savedToken}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.userId) {
+          setToken(savedToken);
+          setUsername(data.email);
+          setIsLoggedIn(true);
+        } else {
+          localStorage.removeItem('devops_token');
+          localStorage.removeItem('devops_username');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('devops_token');
+        localStorage.removeItem('devops_username');
+      });
+  }, []);
 
-  const handleLogin = async () => {
-    if (!loginUsername.trim() || !loginPassword.trim()) return;
-    setLoginLoading(true);
-    setLoginError('');
+  const handleAuthSubmit = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) return;
+    setAuthLoading(true);
+    setAuthError('');
+    const endpoint = authMode === 'register' ? '/auth/register' : '/auth/login';
     try {
-      const res = await fetch(`${API_URL}/api/login`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loginUsername.trim(), password: loginPassword }),
+        body: JSON.stringify({ email: authEmail.trim(), password: authPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setLoginError(data.error || 'Giris basarisiz');
-        setLoginLoading(false);
+        setAuthError(data.error || 'Islem basarisiz');
+        setAuthLoading(false);
+        return;
+      }
+      if (data.requiresVerification) {
+        setAuthStep('code');
+        setAuthCode('');
+      } else if (data.token) {
+        localStorage.setItem('devops_token', data.token);
+        localStorage.setItem('devops_username', data.email);
+        setToken(data.token);
+        setUsername(data.email);
+        setIsLoggedIn(true);
+        setShowAuthModal(false);
+        setAuthEmail('');
+        setAuthPassword('');
+        setAuthError('');
+      }
+    } catch {
+      setAuthError('Sunucuya baglanilamadi');
+    }
+    setAuthLoading(false);
+  };
+
+  const handleVerifyCode = async () => {
+    if (!authCode.trim()) return;
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`${API_URL}/auth/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: authEmail.trim(), code: authCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || 'Kod dogrulanamadi');
+        setAuthLoading(false);
         return;
       }
       localStorage.setItem('devops_token', data.token);
-      localStorage.setItem('devops_username', data.username);
-      if (data.avatarData) {
-        localStorage.setItem('devops_avatar', data.avatarData);
-        setAvatarData(data.avatarData);
-      } else {
-        localStorage.removeItem('devops_avatar');
-        setAvatarData('');
-      }
+      localStorage.setItem('devops_username', data.email);
       setToken(data.token);
-      setUsername(data.username);
+      setUsername(data.email);
       setIsLoggedIn(true);
-      setLoginUsername('');
-      setLoginPassword('');
-      setLoginError('');
+      setShowAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthCode('');
+      setAuthStep('credentials');
+      setAuthError('');
     } catch {
-      setLoginError('Sunucuya baglanilamadi');
+      setAuthError('Sunucuya baglanilamadi');
     }
-    setLoginLoading(false);
+    setAuthLoading(false);
   };
 
   const handleAvatarUpload = async (e) => {
@@ -307,30 +370,24 @@ export default function App() {
   const isImageFile = (mimetype) => mimetype && mimetype.startsWith('image/');
 
   useEffect(() => {
-    if (isLoggedIn && !isGuest && token && view === 'files') {
+    if (isLoggedIn && token && view === 'files') {
       fetchFiles();
     }
-  }, [isLoggedIn, isGuest, token, view, fetchFiles]);
+  }, [isLoggedIn, token, view, fetchFiles]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      setLoading(false);
-      return;
-    }
-    const req = isGuest
-      ? fetch(`${API_URL}/api/tasks`).then(r => r.json())
-      : authFetch(`${API_URL}/api/tasks`).then(r => r.json());
-    req
+    if (!isLoggedIn) guestTrack('PAGE_VIEW', 'Sayfa acildi');
+    fetch(`${API_URL}/api/tasks`)
+      .then(r => r.json())
       .then(data => {
         setTasks(Array.isArray(data) ? data : []);
         setLoading(false);
       })
-      .catch(err => {
-        if (err.message && err.message.includes('Oturum')) return;
+      .catch(() => {
         setError('Backend\'e baglanamadi. Lutfen tekrar deneyin.');
         setLoading(false);
       });
-  }, [isLoggedIn, isGuest, token, authFetch]);
+  }, [isLoggedIn]);
 
   const toggleTask = async (task) => {
     const updated = tasks.map(t =>
@@ -536,37 +593,70 @@ export default function App() {
     <div className="app">
       <div className="grid-bg" />
 
-      {/* LOGIN EKRANI */}
-      {!isLoggedIn && (
-        <div className="popup-overlay">
-          <div className="popup-box">
-            <div className="popup-title">Hosgeldin!</div>
-            <p className="popup-desc">DevOps Roadmap'e erisim icin giris yap</p>
-            {loginError && <div className="login-error">{loginError}</div>}
-            <input
-              className="popup-input"
-              type="text"
-              placeholder="Kullanici adi..."
-              value={loginUsername}
-              onChange={(e) => setLoginUsername(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('login-password').focus(); }}
-              autoFocus
-            />
-            <input
-              id="login-password"
-              className="popup-input"
-              type="password"
-              placeholder="Sifre..."
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
-            />
-            <button className="popup-btn" onClick={handleLogin} disabled={loginLoading}>
-              {loginLoading ? 'Giris yapiliyor...' : 'Giris Yap'}
-            </button>
-            <button className="popup-btn-skip" onClick={handleSkip}>
-              Atla
-            </button>
+      {/* AUTH MODAL */}
+      {showAuthModal && (
+        <div className="popup-overlay" onClick={() => { setShowAuthModal(false); setAuthError(''); setAuthStep('credentials'); setAuthCode(''); }}>
+          <div className="popup-box" onClick={(e) => e.stopPropagation()}>
+            {authStep === 'credentials' ? (
+              <>
+                <div className="auth-tabs">
+                  <button className={`auth-tab ${authMode === 'login' ? 'active' : ''}`} onClick={() => { setAuthMode('login'); setAuthError(''); }}>
+                    Giris Yap
+                  </button>
+                  <button className={`auth-tab ${authMode === 'register' ? 'active' : ''}`} onClick={() => { setAuthMode('register'); setAuthError(''); }}>
+                    Kayit Ol
+                  </button>
+                </div>
+                <p className="popup-desc">
+                  {authMode === 'register' ? 'Yeni hesap olustur' : 'Hesabinla giris yap'}
+                </p>
+                {authError && <div className="login-error">{authError}</div>}
+                <input
+                  className="popup-input"
+                  type="email"
+                  placeholder="E-posta..."
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('auth-password').focus(); }}
+                  autoFocus
+                />
+                <input
+                  id="auth-password"
+                  className="popup-input"
+                  type="password"
+                  placeholder="Sifre..."
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAuthSubmit(); }}
+                />
+                <button className="popup-btn" onClick={handleAuthSubmit} disabled={authLoading}>
+                  {authLoading ? 'Yukleniyor...' : (authMode === 'register' ? 'Kayit Ol' : 'Giris Yap')}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="popup-desc">
+                  <strong>{authEmail}</strong> adresine 6 haneli dogrulama kodu gonderildi
+                </p>
+                {authError && <div className="login-error">{authError}</div>}
+                <input
+                  className="popup-input verification-code-input"
+                  type="text"
+                  placeholder="6 haneli kod..."
+                  value={authCode}
+                  onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setAuthCode(v); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyCode(); }}
+                  maxLength={6}
+                  autoFocus
+                />
+                <button className="popup-btn" onClick={handleVerifyCode} disabled={authLoading || authCode.length !== 6}>
+                  {authLoading ? 'Dogrulaniyor...' : 'Dogrula'}
+                </button>
+                <button className="popup-btn-back" onClick={() => { setAuthStep('credentials'); setAuthCode(''); setAuthError(''); }}>
+                  Geri Don
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -615,18 +705,12 @@ export default function App() {
               <h1 className="brand-title">DevOps <span>Roadmap</span></h1>
               <p className="brand-sub">Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu</p>
             </div>
-            {isGuest && (
-              <div className="guest-badge-area">
-                <div className="guest-badge">
-                  <span className="guest-icon">👁</span>
-                  <span className="guest-label">Misafir</span>
-                </div>
-                <button className="guest-login-btn" onClick={handleLogout}>
-                  Giris Yap
-                </button>
-              </div>
+            {!isLoggedIn && (
+              <button className="auth-open-btn" onClick={() => { setShowAuthModal(true); setAuthMode('login'); setAuthError(''); }}>
+                Oturum Ac
+              </button>
             )}
-            {username && isLoggedIn && !isGuest && (
+            {isLoggedIn && (
               <div className="user-badge-area" ref={userMenuRef}>
                 <input
                   type="file"
@@ -637,9 +721,9 @@ export default function App() {
                 />
                 <div className="user-badge" onClick={() => setShowUserMenu(prev => !prev)}>
                   <span className="user-avatar">
-                    {avatarData ? <img src={avatarData} alt="avatar" /> : username.charAt(0).toUpperCase()}
+                    {avatarData ? <img src={avatarData} alt="avatar" /> : (username || '').charAt(0).toUpperCase()}
                   </span>
-                  <span className="user-name">{username}</span>
+                  <span className="user-name">{username.includes('@') ? username.split('@')[0] : username}</span>
                   <span className="user-badge-arrow">{showUserMenu ? '▲' : '▼'}</span>
                 </div>
                 {showUserMenu && (
@@ -749,31 +833,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Bölüm Görev Sayıları - Bar Chart */}
-            <div className="dash-card dash-card-wide">
-              <div className="dash-card-title">Bolum Bazli Gorev Sayisi</div>
-              <div className="dash-column-chart">
-                {sectionStats.map(s => (
-                  <div key={s.name} className="dash-col-item">
-                    <div className="dash-col-bar-wrapper">
-                      <div
-                        className="dash-col-bar-done"
-                        style={{ height: `${(s.done / maxSectionTasks) * 100}%` }}
-                      />
-                      <div
-                        className="dash-col-bar-remaining"
-                        style={{ height: `${((s.total - s.done) / maxSectionTasks) * 100}%` }}
-                      />
-                    </div>
-                    <span className="dash-col-label" title={s.name}>{s.name.length > 8 ? s.name.slice(0, 7) + '..' : s.name}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="dash-chart-legend">
-                <span className="dash-legend-item"><span className="dash-legend-dot done" /> Tamamlanan</span>
-                <span className="dash-legend-item"><span className="dash-legend-dot remaining" /> Kalan</span>
-              </div>
-            </div>
           </div>
         </div>
         )}
@@ -895,10 +954,10 @@ export default function App() {
                   <div className="task-wrapper" key={task.id}>
                     <div className="task-left">
                       <div className={`task ${task.completed ? 'done' : ''}`}>
-                        <div className="chk" onClick={(e) => { if (isGuest) return; e.stopPropagation(); toggleTask(task); }} style={isGuest ? { cursor: 'not-allowed', opacity: 0.5 } : {}}>
+                        <div className="chk" onClick={(e) => { if (!isLoggedIn) { guestTrack('CLICK_TASK', task.title); return; } e.stopPropagation(); toggleTask(task); }} style={!isLoggedIn ? { cursor: 'not-allowed', opacity: 0.5 } : {}}>
                           {task.completed ? '✓' : ''}
                         </div>
-                        <span className="task-name" onClick={() => { if (!isGuest) toggleTask(task); }} style={isGuest ? { cursor: 'default' } : {}}>
+                        <span className="task-name" onClick={() => { if (isLoggedIn) toggleTask(task); }} style={!isLoggedIn ? { cursor: 'default' } : {}}>
                           {task.title || task.name}
                         </span>
                         {subtasks.length > 0 && (
@@ -910,9 +969,9 @@ export default function App() {
                             return (
                               <span
                                 className={`priority-badge ${pri.color}`}
-                                onClick={(e) => { if (isGuest) return; e.stopPropagation(); cyclePriority(task); }}
-                                title={isGuest ? 'Oncelik degistirmek icin giris yapin' : 'Öncelik değiştirmek için tıkla'}
-                                style={isGuest ? { cursor: 'not-allowed' } : {}}
+                                onClick={(e) => { if (!isLoggedIn) { guestTrack('CLICK_PRIORITY', task.title); return; } e.stopPropagation(); cyclePriority(task); }}
+                                title={!isLoggedIn ? 'Oncelik degistirmek icin giris yapin' : 'Öncelik değiştirmek için tıkla'}
+                                style={!isLoggedIn ? { cursor: 'not-allowed' } : {}}
                               >
                                 {pri.key === 'none' ? '◇' : '◆'} {pri.label}
                               </span>
@@ -943,11 +1002,11 @@ export default function App() {
                         <div className="subtask-area">
                           {subtasks.map(st => (
                             <div key={st.id} className={`subtask ${st.completed ? 'done' : ''}`}>
-                              <div className="chk" onClick={() => { if (!isGuest) toggleSubtask(task.id, st); }} style={isGuest ? { cursor: 'not-allowed', opacity: 0.5 } : {}}>
+                              <div className="chk" onClick={() => { if (isLoggedIn) toggleSubtask(task.id, st); }} style={!isLoggedIn ? { cursor: 'not-allowed', opacity: 0.5 } : {}}>
                                 {st.completed ? '✓' : ''}
                               </div>
                               <span className="subtask-name">{st.title}</span>
-                              {!isGuest && (
+                              {isLoggedIn && (
                                 <button
                                   className="subtask-delete-btn"
                                   onClick={() => deleteSubtask(task.id, st.id)}
@@ -956,7 +1015,7 @@ export default function App() {
                               )}
                             </div>
                           ))}
-                          {!isGuest && (showSubtaskForm[task.id] ? (
+                          {isLoggedIn && (showSubtaskForm[task.id] ? (
                             <div className="subtask-form">
                               <input
                                 className="subtask-input"
@@ -998,7 +1057,7 @@ export default function App() {
                               <span className="comment-date">{formatFullDate(c.created_at)}</span>
                             </div>
                             <div className="comment-text">{c.text}</div>
-                            {!isGuest && (
+                            {isLoggedIn && (
                               <button
                                 className="comment-delete-btn"
                                 onClick={() => deleteComment(task.id, c.id)}
@@ -1009,9 +1068,9 @@ export default function App() {
                             )}
                           </div>
                         ))}
-                        {isGuest ? (
+                        {!isLoggedIn ? (
                           <div className="guest-comment-notice">
-                            Yorum yazmak icin <button className="guest-inline-login" onClick={handleLogout}>giris yapin</button>
+                            Yorum yazmak icin <button className="guest-inline-login" onClick={() => { guestTrack('CLICK_LOGIN_PROMPT', 'Yorum alanından'); setShowAuthModal(true); }}>giris yapin</button>
                           </div>
                         ) : (
                           <div className="comment-form">
@@ -1044,9 +1103,9 @@ export default function App() {
 
         {view === 'files' && (
           <div className="files-section">
-            {isGuest ? (
+            {!isLoggedIn ? (
               <div className="guest-files-notice">
-                Dosya yuklemek icin <button className="guest-inline-login" onClick={handleLogout}>giris yapin</button>
+                Dosya yuklemek icin <button className="guest-inline-login" onClick={() => { guestTrack('CLICK_LOGIN_PROMPT', 'Dosya alanından'); setShowAuthModal(true); }}>giris yapin</button>
               </div>
             ) : (
               <div
@@ -1111,7 +1170,7 @@ export default function App() {
                         <a href={f.url} target="_blank" rel="noopener noreferrer" className="file-btn-download" title="Indir">
                           Indir
                         </a>
-                        {!isGuest && (
+                        {isLoggedIn && (
                           <button className="file-btn-delete" onClick={() => deleteFile(f.id)} title="Sil">
                             Sil
                           </button>
