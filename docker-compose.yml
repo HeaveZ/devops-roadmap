@@ -30,9 +30,7 @@ services:
       - kafka_data:/tmp/kraft-combined-logs
 
   auth-server:
-    build:
-      context: ./auth-server
-      dockerfile: Dockerfile
+    image: ghcr.io/heavez/devops-roadmap/auth-server:${IMAGE_TAG}
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -44,9 +42,7 @@ services:
       - email-sender
 
   email-sender:
-    build:
-      context: ./email-sender
-      dockerfile: Dockerfile
+    image: ghcr.io/heavez/devops-roadmap/email-sender:${IMAGE_TAG}
     restart: always
     environment:
       SMTP_USER: ${SMTP_USER}
@@ -54,9 +50,7 @@ services:
       PORT: 3002
 
   task-manager:
-    build:
-      context: ./task-manager
-      dockerfile: Dockerfile
+    image: ghcr.io/heavez/devops-roadmap/task-manager:${IMAGE_TAG}
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -73,9 +67,7 @@ services:
       - kafka
 
   audit-logger:
-    build:
-      context: ./audit-logger
-      dockerfile: Dockerfile
+    image: ghcr.io/heavez/devops-roadmap/audit-logger:${IMAGE_TAG}
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -85,9 +77,7 @@ services:
       - kafka
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/heavez/devops-roadmap/frontend:${IMAGE_TAG}
     restart: always
     depends_on:
       - task-manager
