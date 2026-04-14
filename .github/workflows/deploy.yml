@@ -52,8 +52,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             cd /opt/heavezz
-
-            cat > .env << 'ENVEOF'
+            cat > .env << ENVEOF
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
@@ -67,11 +66,10 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             IMAGE_TAG=${{ github.sha }}
             ENVEOF
-
+            sed -i 's/^[[:space:]]*//' .env
             docker pull ${{ env.IMAGE_PREFIX }}/task-manager:${{ github.sha }}
             docker pull ${{ env.IMAGE_PREFIX }}/auth-server:${{ github.sha }}
             docker pull ${{ env.IMAGE_PREFIX }}/email-sender:${{ github.sha }}
             docker pull ${{ env.IMAGE_PREFIX }}/audit-logger:${{ github.sha }}
             docker pull ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
-
             docker compose up -d --force-recreate
