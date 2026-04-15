@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-navy-900 font-sans text-ink antialiased;
+    margin: 0;
+  }
+}
+
+@layer components {
+  .grid-bg {
+    @apply pointer-events-none fixed inset-0 z-0 bg-grid;
+    background-size: 40px 40px;
+  }
+}

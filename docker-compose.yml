@@ -1,4 +1,5 @@
 name: taskly
+version: "2.0.0"
 
 services:
 
