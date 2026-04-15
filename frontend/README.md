@@ -1,70 +1,85 @@
-# Getting Started with Create React App
+# Frontend (Taskly)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+DevOps Roadmap (Taskly) frontend uygulaması — React 19 + TypeScript + TanStack Query + React Router v6 + Tailwind CSS.
 
-## Available Scripts
+Backend mikroservislerine (`auth-server`, `task-manager`) nginx reverse proxy üzerinden erişir.
 
-In the project directory, you can run:
+## Teknoloji Yığını
 
-### `npm start`
+| Katman               | Teknoloji                                  |
+| -------------------- | ------------------------------------------ |
+| Framework            | React 19 (Create React App + TypeScript 5) |
+| Routing              | React Router v6 (`createBrowserRouter`)    |
+| Server state         | TanStack Query v5                          |
+| HTTP                 | Axios (interceptor + 401 handler)          |
+| Auth state           | React Context (`AuthProvider`)             |
+| UI/Styling           | Tailwind CSS v3 (custom theme tokens)      |
+| Static serve (prod)  | nginx (SPA fallback ile)                   |
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Komutlar
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```bash
+npm install        # Bağımlılıkları kur
+npm start          # Dev sunucusu (http://localhost:3000)
+npm run build      # Production build → build/
+npx tsc --noEmit   # Tip kontrolü
+```
 
-### `npm test`
+`REACT_APP_API_URL` boş bırakılırsa same-origin (`/api`, `/auth`) varsayılır — Docker / nginx senaryosu için budur.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Klasör Mimarisi
 
-### `npm run build`
+```
+src/
+├── main.tsx, App.tsx           # Mount + provider/router compose
+├── app/                        # Uygulama kabuğu (router, providers, layout)
+│   ├── providers/              # QueryProvider, AppProviders
+│   ├── router/                 # AppRouter, ProtectedRoute, GuestRoute, routes.ts
+│   └── layout/                 # AppLayout, Header, UserMenu, Footer
+├── pages/                      # Route-level (ince) sayfalar
+├── features/                   # Self-contained feature modülleri
+│   ├── auth/                   # api, hooks, context, components
+│   ├── tasks/                  # api, hooks, components, utils, types
+│   ├── files/                  # api, hooks, components
+│   ├── profile/                # api, hooks, components
+│   ├── dashboard/              # components, utils (stats hesaplamaları)
+│   └── analytics/              # guest tracking
+├── shared/                     # Cross-cutting
+│   ├── api/                    # axios client + interceptor + endpoints
+│   ├── ui/                     # Design system primitives (Button, Modal, …)
+│   ├── hooks/                  # useDebounce, useLocalStorage, …
+│   ├── lib/                    # Saf yardımcılar (date, cn)
+│   └── config/                 # env okuma
+└── styles/index.css            # Tailwind directives + minimum global
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Mimari kuralları
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Feature sınırı**: `features/<x>` başka feature'a `import` etmez. Cross-feature paylaşım `shared/` üzerinden.
+- **Server vs UI state**: Tüm API çağrıları `useQuery` / `useMutation`. Cache key'leri feature başına standart (`['tasks']`, `['files']`, `['auth','me']`).
+- **Axios interceptor**: Request bearer token ekler, response 401 → `AuthContext.logout()` → otomatik `/login`.
+- **Optimistic update**: Task/subtask/comment toggle ve delete'leri optimistic; hata olursa rollback.
+- **Tip güvenliği**: TS strict mode. API contract'leri her feature'ın `types.ts` dosyasında.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Routes
 
-### `npm run eject`
+| Path             | Sayfa             | Auth         |
+| ---------------- | ----------------- | ------------ |
+| `/`              | → `/tasks`        | -            |
+| `/tasks`         | TasksPage         | Public (R/O) |
+| `/files`         | FilesPage         | Protected    |
+| `/dashboard`     | DashboardPage     | Public       |
+| `/profile`       | ProfilePage       | Protected    |
+| `/login`         | LoginPage         | Guest only   |
+| `/register`      | RegisterPage      | Guest only   |
+| `/verify-code`   | VerifyCodePage    | Guest only   |
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Docker
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+`Dockerfile` iki aşamalı: Node 18 build → nginx:alpine serve. `nginx.conf` SPA fallback (`try_files $uri /index.html`) içerir; React Router refresh sorununu engeller.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+docker compose up --build
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Frontend → http://localhost (üst seviye `nginx/` reverse proxy üzerinden).
