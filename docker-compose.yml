@@ -1,3 +1,5 @@
+name: taskly
+
 services:
 
   db:
@@ -10,27 +12,75 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  backend:
-    image: ghcr.io/heavez/devops-roadmap/backend:latest
+  kafka:
+    image: apache/kafka:3.7.0
+    restart: always
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: "taskly-kafka-cluster-001"
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+
+  auth-server:
+    image: ghcr.io/heavez/devops-roadmap/auth-server:${IMAGE_TAG}
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_SENDER_URL: http://email-sender:3002
+      PORT: 3001
+    depends_on:
+      - db
+      - email-sender
+
+  email-sender:
+    image: ghcr.io/heavez/devops-roadmap/email-sender:${IMAGE_TAG}
+    restart: always
+    environment:
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      PORT: 3002
+
+  task-manager:
+    image: ghcr.io/heavez/devops-roadmap/task-manager:${IMAGE_TAG}
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL}
       PORT: 5000
-      JWT_SECRET: ${JWT_SECRET}
-      DEFAULT_USER_PASSWORD_AZIZ: ${DEFAULT_USER_PASSWORD_AZIZ}
-      DEFAULT_USER_PASSWORD_IBRAHIM: ${DEFAULT_USER_PASSWORD_IBRAHIM}
+      AUTH_SERVER_URL: http://auth-server:3001
+      KAFKA_BROKER: kafka:9092
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION}
       AWS_BUCKET_NAME: ${AWS_BUCKET_NAME}
     depends_on:
       - db
+      - auth-server
+      - kafka
+
+  audit-logger:
+    image: ghcr.io/heavez/devops-roadmap/audit-logger:${IMAGE_TAG}
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      KAFKA_BROKER: kafka:9092
+    depends_on:
+      - db
+      - kafka
 
   frontend:
-    image: ghcr.io/heavez/devops-roadmap/frontend:latest
+    image: ghcr.io/heavez/devops-roadmap/frontend:${IMAGE_TAG}
     restart: always
     depends_on:
-      - backend
+      - task-manager
 
   nginx:
     image: nginx:alpine
@@ -40,13 +90,11 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./frontend/build:/usr/share/nginx/html
     depends_on:
       - frontend
-      - backend
+      - task-manager
+      - auth-server
 
 volumes:
   pgdata:
-
-
-
+  kafka_data:

@@ -1,8 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const { S3Client, PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
@@ -20,66 +18,58 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const upload = multer({ storage: multer.memoryStorage() });
 
+const { Kafka } = require("kafkajs");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET;
+const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || "http://auth-server:3001";
+
+// Kafka Producer
+const kafka = new Kafka({
+  clientId: "task-manager",
+  brokers: [process.env.KAFKA_BROKER || "kafka:9092"],
+});
+const producer = kafka.producer();
+let kafkaReady = false;
+
+producer.connect()
+  .then(() => { kafkaReady = true; console.log("Kafka producer baglandi"); })
+  .catch((err) => console.error("Kafka baglanti hatasi:", err.message));
+
+async function auditLog(action, user, resource, resourceId, details) {
+  if (!kafkaReady) return;
+  try {
+    await producer.send({
+      topic: "audit-log",
+      messages: [{
+        value: JSON.stringify({
+          action,
+          userId: user?.userId,
+          email: user?.email,
+          resource,
+          resourceId: String(resourceId || ""),
+          details: details || "",
+          timestamp: new Date().toISOString(),
+        }),
+      }],
+    });
+  } catch (err) {
+    console.error("Audit log gonderilemedi:", err.message);
+  }
+}
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-// PostgreSQL bağlantısı
+// PostgreSQL baglantisi
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Veritabanı tablosunu oluştur (ilk çalıştırmada)
+// Veritabani tablolarini olustur (ilk calistirmada)
 async function initDB() {
   try {
-    // Users tablosu (tasks'tan ONCE)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    // Varsayilan kullanicilar (sifreler .env'den alinir)
-    const { rowCount: userCount } = await pool.query("SELECT 1 FROM users LIMIT 1");
-    if (userCount === 0) {
-      const defaultUsers = [
-        { username: "aziz", password: process.env.DEFAULT_USER_PASSWORD_AZIZ },
-        { username: "ibrahim", password: process.env.DEFAULT_USER_PASSWORD_IBRAHIM },
-      ];
-      for (const u of defaultUsers) {
-        if (!u.password) {
-          console.warn(`${u.username} icin sifre .env'de tanimlanmamis, atlaniyor.`);
-          continue;
-        }
-        const hash = await bcrypt.hash(u.password, 10);
-        await pool.query(
-          "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
-          [u.username, hash]
-        );
-      }
-      console.log("Varsayilan kullanicilar olusturuldu");
-    }
-
-    // ibrahim kullanicisi yoksa ekle (mevcut DB'ler icin)
-    const { rowCount: ibrahimCheck } = await pool.query(
-      "SELECT 1 FROM users WHERE username = 'ibrahim'"
-    );
-    if (ibrahimCheck === 0 && process.env.DEFAULT_USER_PASSWORD_IBRAHIM) {
-      const hash = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD_IBRAHIM, 10);
-      await pool.query(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
-        ["ibrahim", hash]
-      );
-      console.log("ibrahim kullanicisi eklendi");
-    }
-
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
@@ -110,7 +100,6 @@ async function initDB() {
       )
     `);
 
-    // Mevcut tabloya author kolonu ekle (varsa atla)
     await pool.query(`
       DO $$ BEGIN
         ALTER TABLE comments ADD COLUMN IF NOT EXISTS author VARCHAR(100) DEFAULT 'Anonim';
@@ -118,17 +107,10 @@ async function initDB() {
       END $$
     `);
 
-    // Avatar kolonu ekle
-    await pool.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_data TEXT
-    `);
-
-    // Priority kolonu ekle
     await pool.query(`
       ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'none'
     `);
 
-    // Dosyalar tablosu
     await pool.query(`
       CREATE TABLE IF NOT EXISTS files (
         id SERIAL PRIMARY KEY,
@@ -142,258 +124,85 @@ async function initDB() {
       )
     `);
 
-    // Tablo boşsa varsayılan görevleri ekle
+    // Tablo bossa varsayilan gorevleri ekle
     const { rowCount } = await pool.query("SELECT 1 FROM tasks LIMIT 1");
     if (rowCount === 0) {
       const defaultTasks = [
-        // Linux & OS Temelleri
         { title: "Linux komut satırı temelleri", section: "Linux & OS" },
         { title: "Dosya sistemi ve izinler", section: "Linux & OS" },
         { title: "Süreç yönetimi (ps, top, kill)", section: "Linux & OS" },
         { title: "Shell scripting (Bash)", section: "Linux & OS" },
         { title: "Cron jobs & systemd", section: "Linux & OS" },
-        // Networking
         { title: "TCP/IP, DNS, HTTP/HTTPS temelleri", section: "Networking" },
         { title: "Firewall (iptables, ufw)", section: "Networking" },
         { title: "Load Balancing kavramları", section: "Networking" },
         { title: "SSL/TLS sertifikaları", section: "Networking" },
-        // Versiyon Kontrol
         { title: "Git temelleri (add, commit, push, pull)", section: "Git & VCS" },
         { title: "Branching ve merging stratejileri", section: "Git & VCS" },
         { title: "GitHub/GitLab kullanımı", section: "Git & VCS" },
-        // CI/CD
         { title: "CI/CD kavramları", section: "CI/CD" },
         { title: "GitHub Actions", section: "CI/CD" },
         { title: "Jenkins pipeline", section: "CI/CD" },
         { title: "GitLab CI", section: "CI/CD" },
-        // Containers
         { title: "Docker temelleri", section: "Containers" },
         { title: "Dockerfile yazımı", section: "Containers" },
         { title: "Docker Compose", section: "Containers" },
         { title: "Container registry kullanımı", section: "Containers" },
-        // Orchestration
         { title: "Kubernetes temelleri", section: "Orchestration" },
         { title: "Pods, Services, Deployments", section: "Orchestration" },
         { title: "Helm charts", section: "Orchestration" },
         { title: "kubectl komutları", section: "Orchestration" },
-        // Cloud
         { title: "AWS / Azure / GCP temelleri", section: "Cloud" },
         { title: "IAM ve güvenlik", section: "Cloud" },
         { title: "S3 / Blob Storage", section: "Cloud" },
         { title: "EC2 / VM yönetimi", section: "Cloud" },
-        // IaC
         { title: "Terraform temelleri", section: "IaC" },
         { title: "Ansible ile konfigürasyon yönetimi", section: "IaC" },
         { title: "CloudFormation / ARM Templates", section: "IaC" },
-        // Monitoring
         { title: "Prometheus & Grafana", section: "Monitoring" },
         { title: "Log yönetimi (ELK Stack)", section: "Monitoring" },
         { title: "Alerting stratejileri", section: "Monitoring" },
         { title: "Application Performance Monitoring", section: "Monitoring" },
       ];
-
       for (const task of defaultTasks) {
         await pool.query(
           "INSERT INTO tasks (title, section) VALUES ($1, $2)",
           [task.title, task.section]
         );
       }
-      console.log("Varsayılan görevler eklendi.");
+      console.log("Varsayilan gorevler eklendi.");
     }
 
-    // Kişisel roadmap görevlerini ekle (bir kez)
-    const { rowCount: roadmapCheck } = await pool.query(
-      "SELECT 1 FROM tasks WHERE title LIKE '* %' LIMIT 1"
-    );
-    if (roadmapCheck === 0) {
-      const roadmap = [
-        // Docker Deep Dive
-        {
-          section: "Docker Deep Dive",
-          tasks: [
-            { title: "* Multi-stage builds", subtasks: ["* Github'da evamX projelerini incele ve Dockerfile yapısı ile ilgili bir analiz yap."] },
-            { title: "* Docker networking detayları (bridge, overlay, host)", subtasks: ["* Docker network yapısını ve kavramlarını öğren"] },
-            { title: "* Volume management ve persistent storage", subtasks: ["* Stateful uygulamalar için volume ve persistent storage kavramlarını öğren"] },
-            { title: "* Docker security best practices", subtasks: ["* Dockerize bir uygulama için güvenlik best practice'lerini öğren"] },
-            { title: "* Image optimization teknikleri", subtasks: ["* Docker build sonrasında oluşan Image'ın optimizasyonlarını araştır ve uygula"] },
-          ],
-        },
-        // Linux & Scripting
-        {
-          section: "Linux & Scripting",
-          tasks: [
-            { title: "* Bash scripting", subtasks: ["* Temel bash scriptlerini kullanmayı alışkanlık haline getir, AI ile işine yarayacak scriptler oluştur."] },
-            { title: "* Log analizi araçları (grep, awk, sed, jq)", subtasks: ["* Çalışan docker container yada pod içindeki uygulamanın loglarını analiz etmeyi öğren"] },
-            { title: "* Systemd servisleri", subtasks: ["* Temel linux servisleri ve yeni bir servisin systemd'e eklenmesini araştır"] },
-            { title: "* Cron jobs ve automation", subtasks: ["* Zamanlı işler için cronjob oluşturmayı öğren"] },
-          ],
-        },
-        // Networking Temelleri
-        {
-          section: "Networking Temelleri",
-          tasks: [
-            { title: "* TCP/IP deep dive", subtasks: ["* Temel network kavramları, özellikle docker ve kubernetes ortamlar için"] },
-            { title: "* Load balancing kavramları", subtasks: ["* Load Balancer yapısı ve kavramlarını öğren"] },
-            { title: "* Reverse proxy (Nginx detaylı)", subtasks: ["* Reverse Proxy kavramını ve teknik yapısını öğren"] },
-            { title: "* DNS management", subtasks: ["* DNS yönetimini, teknik yapısını ve kavramlarını öğren"] },
-          ],
-        },
-        // Pratik Projeler
-        {
-          section: "Pratik Projeler",
-          tasks: [
-            { title: "* evamX servislerinden birini multi-stage build ile optimize et", subtasks: [] },
-            { title: "* Docker Compose ile 5+ servisli bir environment kur (DB, evamX, Nginx)", subtasks: [] },
-            { title: "* Nginx ile reverse proxy + SSL termination kur", subtasks: [] },
-            { title: "* Belirttiğim bütün teknik süreçler ile ilgili kendi lokalinde test et", subtasks: [] },
-          ],
-        },
-        // ToDo
-        {
-          section: "ToDo",
-          tasks: [
-            { title: "* Haftada 2 saat pair programming", subtasks: [] },
-            { title: "* Code review", subtasks: [] },
-          ],
-        },
-      ];
-
-      for (const group of roadmap) {
-        for (const task of group.tasks) {
-          const { rows } = await pool.query(
-            "INSERT INTO tasks (title, section) VALUES ($1, $2) RETURNING id",
-            [task.title, group.section]
-          );
-          const taskId = rows[0].id;
-          for (const st of task.subtasks) {
-            await pool.query(
-              "INSERT INTO subtasks (parent_id, title) VALUES ($1, $2)",
-              [taskId, st]
-            );
-          }
-        }
-      }
-      console.log("Kişisel roadmap görevleri eklendi.");
-    }
-
-    console.log("Veritabanı hazır.");
+    console.log("Veritabani hazir.");
   } catch (err) {
-    console.error("DB init hatası:", err.message);
+    console.error("DB init hatasi:", err.message);
   }
 }
 
-// --- AUTH MIDDLEWARE ---
-function authMiddleware(req, res, next) {
+// --- AUTH MIDDLEWARE (auth-server uzerinden dogrulama) ---
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Yetkilendirme gerekli" });
   }
-  const token = authHeader.split(" ")[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = { userId: decoded.userId, username: decoded.username };
+    const verifyRes = await fetch(`${AUTH_SERVER_URL}/auth/verify`, {
+      headers: { "Authorization": authHeader },
+    });
+    if (!verifyRes.ok) {
+      return res.status(401).json({ error: "Gecersiz veya suresi dolmus token" });
+    }
+    const data = await verifyRes.json();
+    req.user = { userId: data.userId, email: data.email };
     next();
   } catch {
-    return res.status(401).json({ error: "Gecersiz veya suresi dolmus token" });
+    return res.status(401).json({ error: "Auth servise baglanilamadi" });
   }
 }
 
 // --- API ROUTES ---
 
-// Login (korumasiz)
-app.post("/api/login", async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ error: "Kullanici adi ve sifre gerekli" });
-    }
-    const { rows } = await pool.query(
-      "SELECT * FROM users WHERE username = $1",
-      [username.trim()]
-    );
-    if (rows.length === 0) {
-      return res.status(401).json({ error: "Kullanici adi veya sifre hatali" });
-    }
-    const user = rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: "Kullanici adi veya sifre hatali" });
-    }
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-    res.json({ token, username: user.username, avatarData: user.avatar_data || null });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Avatar yukle (korunmali)
-app.post("/api/avatar", authMiddleware, async (req, res) => {
-  try {
-    const { avatarData } = req.body;
-    if (!avatarData) {
-      return res.status(400).json({ error: "Avatar verisi gerekli" });
-    }
-    await pool.query(
-      "UPDATE users SET avatar_data = $1 WHERE id = $2",
-      [avatarData, req.user.userId]
-    );
-    res.json({ success: true, avatarData });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Sifre degistir (korunmali)
-app.post("/api/change-password", authMiddleware, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: "Mevcut sifre ve yeni sifre gerekli" });
-    }
-    const { rows } = await pool.query(
-      "SELECT * FROM users WHERE id = $1",
-      [req.user.userId]
-    );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Kullanici bulunamadi" });
-    }
-    const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
-    if (!valid) {
-      return res.status(401).json({ error: "Mevcut sifre hatali" });
-    }
-    const newHash = await bcrypt.hash(newPassword, 10);
-    await pool.query(
-      "UPDATE users SET password_hash = $1 WHERE id = $2",
-      [newHash, req.user.userId]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Kullanici avatarini getir (korumasiz)
-app.get("/api/avatar/:username", async (req, res) => {
-  try {
-    const { username } = req.params;
-    const { rows } = await pool.query(
-      "SELECT avatar_data FROM users WHERE username = $1",
-      [username]
-    );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Kullanici bulunamadi" });
-    }
-    res.json({ avatarData: rows[0].avatar_data || null });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Tüm görevleri getir (subtask'larla birlikte) - misafir erisime acik
+// Tum gorevleri getir (misafir erisime acik)
 app.get("/api/tasks", async (req, res) => {
   try {
     const { rows: tasks } = await pool.query(
@@ -426,12 +235,26 @@ app.get("/api/tasks", async (req, res) => {
   }
 });
 
-// Yeni görev oluştur
+// Misafir takip (auth gerektirmez)
+app.post("/api/track", async (req, res) => {
+  try {
+    const { action, details } = req.body;
+    if (!action) return res.status(400).json({ error: "Action gerekli" });
+    const ip = req.headers["x-real-ip"] || req.headers["x-forwarded-for"] || req.ip;
+    const userAgent = req.headers["user-agent"] || "";
+    auditLog("GUEST_" + action, { userId: null, email: null }, "guest", null, JSON.stringify({ ip, userAgent, details: details || "" }));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Yeni gorev olustur
 app.post("/api/tasks", authMiddleware, async (req, res) => {
   try {
     const { title, section } = req.body;
     if (!title || !title.trim()) {
-      return res.status(400).json({ error: "Başlık gerekli" });
+      return res.status(400).json({ error: "Baslik gerekli" });
     }
     if (!section || !section.trim()) {
       return res.status(400).json({ error: "Section gerekli" });
@@ -440,13 +263,14 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
       "INSERT INTO tasks (title, section) VALUES ($1, $2) RETURNING *",
       [title.trim(), section.trim()]
     );
+    auditLog("TASK_CREATED", req.user, "task", rows[0].id, title.trim());
     res.status(201).json({ ...rows[0], subtasks: [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Görev durumunu güncelle (tamamlandı işaretleme + priority)
+// Gorev durumunu guncelle
 app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -461,13 +285,13 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
     if (priority !== undefined) {
       const validPriorities = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
       if (!validPriorities.includes(priority)) {
-        return res.status(400).json({ error: "Geçersiz öncelik değeri" });
+        return res.status(400).json({ error: "Gecersiz oncelik degeri" });
       }
       updates.push(`priority = $${idx++}`);
       values.push(priority);
     }
     if (updates.length === 0) {
-      return res.status(400).json({ error: "Güncellenecek alan belirtilmedi" });
+      return res.status(400).json({ error: "Guncellenecek alan belirtilmedi" });
     }
     values.push(id);
     const { rows } = await pool.query(
@@ -475,37 +299,40 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
       values
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Görev bulunamadı" });
+      return res.status(404).json({ error: "Gorev bulunamadi" });
     }
+    const action = completed !== undefined ? (completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED") : "TASK_PRIORITY_CHANGED";
+    auditLog(action, req.user, "task", id, rows[0].title);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Alt görev oluştur
+// Alt gorev olustur
 app.post("/api/tasks/:id/subtasks", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
     if (!title || !title.trim()) {
-      return res.status(400).json({ error: "Başlık gerekli" });
+      return res.status(400).json({ error: "Baslik gerekli" });
     }
     const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
     if (parent.rows.length === 0) {
-      return res.status(404).json({ error: "Üst görev bulunamadı" });
+      return res.status(404).json({ error: "Ust gorev bulunamadi" });
     }
     const { rows } = await pool.query(
       "INSERT INTO subtasks (parent_id, title) VALUES ($1, $2) RETURNING *",
       [id, title.trim()]
     );
+    auditLog("SUBTASK_CREATED", req.user, "subtask", rows[0].id, title.trim());
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Alt görev durumunu güncelle
+// Alt gorev durumunu guncelle
 app.patch("/api/subtasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -515,15 +342,16 @@ app.patch("/api/subtasks/:id", authMiddleware, async (req, res) => {
       [completed, id]
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Alt görev bulunamadı" });
+      return res.status(404).json({ error: "Alt gorev bulunamadi" });
     }
+    auditLog(completed ? "SUBTASK_COMPLETED" : "SUBTASK_UNCOMPLETED", req.user, "subtask", id, rows[0].title);
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Alt görevi sil
+// Alt gorevi sil
 app.delete("/api/subtasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -532,15 +360,16 @@ app.delete("/api/subtasks/:id", authMiddleware, async (req, res) => {
       [id]
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Alt görev bulunamadı" });
+      return res.status(404).json({ error: "Alt gorev bulunamadi" });
     }
+    auditLog("SUBTASK_DELETED", req.user, "subtask", id, rows[0].title);
     res.json({ message: "Silindi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Yorum ekle (author artik req.user.username'den geliyor)
+// Yorum ekle
 app.post("/api/tasks/:id/comments", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -550,13 +379,14 @@ app.post("/api/tasks/:id/comments", authMiddleware, async (req, res) => {
     }
     const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
     if (parent.rows.length === 0) {
-      return res.status(404).json({ error: "Görev bulunamadı" });
+      return res.status(404).json({ error: "Gorev bulunamadi" });
     }
-    const authorName = req.user.username;
+    const authorName = req.user.email;
     const { rows } = await pool.query(
       "INSERT INTO comments (task_id, text, author) VALUES ($1, $2, $3) RETURNING *",
       [id, text.trim(), authorName]
     );
+    auditLog("COMMENT_CREATED", req.user, "comment", rows[0].id, text.trim());
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -572,18 +402,13 @@ app.delete("/api/comments/:id", authMiddleware, async (req, res) => {
       [id]
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Yorum bulunamadı" });
+      return res.status(404).json({ error: "Yorum bulunamadi" });
     }
+    auditLog("COMMENT_DELETED", req.user, "comment", id, rows[0].text);
     res.json({ message: "Silindi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-// Sunucuyu başlat
-app.listen(PORT, async () => {
-  console.log(`Server http://localhost:${PORT} adresinde çalışıyor`);
-  await initDB();
 });
 
 // Dosya yukle (S3 + DB)
@@ -605,7 +430,7 @@ app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) 
 
     const { rows } = await pool.query(
       "INSERT INTO files (filename, s3_key, url, size, mimetype, uploaded_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [file.originalname, key, url, file.size, file.mimetype, req.user.username]
+      [file.originalname, key, url, file.size, file.mimetype, req.user.email]
     );
 
     const signedUrl = await getSignedUrl(s3, new GetObjectCommand({
@@ -613,6 +438,7 @@ app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) 
       Key: key,
     }), { expiresIn: 3600 });
 
+    auditLog("FILE_UPLOADED", req.user, "file", rows[0].id, file.originalname);
     res.status(201).json({ ...rows[0], url: signedUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -651,8 +477,15 @@ app.delete("/api/files/:id", authMiddleware, async (req, res) => {
     }));
 
     await pool.query("DELETE FROM files WHERE id = $1", [id]);
+    auditLog("FILE_DELETED", req.user, "file", id, rows[0].filename);
     res.json({ message: "Silindi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Sunucuyu baslat
+app.listen(PORT, async () => {
+  console.log(`Task Manager http://localhost:${PORT} adresinde calisiyor`);
+  await initDB();
 });
