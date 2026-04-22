@@ -1,0 +1,95 @@
+name: taskly
+
+services:
+
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  kafka:
+    image: apache/kafka:3.7.0
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: "taskly-kafka-cluster-001"
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+
+  auth-server:
+    image: ghcr.io/heavez/auth-server:v2.1
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      EMAIL_SENDER_URL: http://email-sender:3002
+      PORT: 3001
+    depends_on:
+      - db
+      - email-sender
+
+  email-sender:
+    image: ghcr.io/heavez/email-sender:v2.1
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3002
+
+  task-manager:
+    image: ghcr.io/heavez/task-manager:v2.1
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 5000
+      AUTH_SERVER_URL: http://auth-server:3001
+      KAFKA_BROKER: kafka:9092
+    depends_on:
+      - db
+      - auth-server
+      - kafka
+
+  audit-logger:
+    image: ghcr.io/heavez/audit-logger:v2.1
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      KAFKA_BROKER: kafka:9092
+    depends_on:
+      - db
+      - kafka
+
+  frontend:
+    image: ghcr.io/heavez/frontend:v2.1
+    restart: unless-stopped
+    depends_on:
+      - task-manager
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - task-manager
+      - auth-server
+
+volumes:
+  pgdata:
+  kafka_data:
