@@ -1,23 +1,25 @@
 // ============================================================
-//  Jenkinsfile — audit-logger servisi için CI/CD pipeline
+//  Jenkinsfile — Taskly multi-service CI/CD pipeline
 // ------------------------------------------------------------
-//  Bu pipeline sadece audit-logger servisi için kurulmuştur.
-//  Amaç: pipeline mekaniğini bu servisle oturtmak; diğer
-//  servisler daha sonra aynı şablonla eklenecek.
+//  5 mikroservis için tek pipeline:
+//    audit-logger, auth-server, task-manager, email-sender, frontend
 //
 //  Akış:
-//    - Her branch (PR dahil): Checkout → Install → Lint/Compile
-//      → Dependency Scan → SonarCloud
-//    - Sadece 'master' branch: Docker Build → GHCR Push → Deploy
+//    - Her branch (PR dahil): Checkout → Install → Lint → Audit → Sonar
+//    - Sadece 'master' branch: Build → Push → Deploy (tüm servisler)
 //
-//  Etiketleme stratejisi (çift tag):
+//  Etiketleme stratejisi (çift tag, her servis için):
 //    - :v2.1-${BUILD_NUMBER}  → immutable, izlenebilir
 //    - :v2.1                  → moving pointer, compose tarafı bunu pull eder
 //
 //  Multi-agent pattern: her stage uygun image'da çalışır.
-//    - Node tabanlı stage'ler:  node:20-alpine
-//    - SonarCloud:              sonarsource/sonar-scanner-cli:latest
-//    - Build / Push / Deploy:   built-in (host docker daemon)
+//    - Quality stages (Install/Lint/Audit):  node:20-alpine
+//    - SonarCloud:                           sonarsource/sonar-scanner-cli:latest
+//    - Build / Push / Deploy:                built-in (host docker daemon)
+//
+//  Deploy: docker compose -f docker-compose.prod.yml up -d
+//          → 5 servisi dependency order'da recreate eder
+//          → .env Jenkins secret file 'taskly-env-prod'tan gelir
 // ============================================================
 
 pipeline {
@@ -26,10 +28,10 @@ pipeline {
 
     // Pipeline genelinde kullanılacak değişkenler.
     environment {
-        SERVICE        = 'audit-logger'
+        // 5 servis listesi — comma-separated; loop'larda split(',')
+        SERVICES       = 'audit-logger,auth-server,task-manager,email-sender,frontend'
         GHCR_REGISTRY  = 'ghcr.io'
         GHCR_NAMESPACE = 'heavez'
-        IMAGE_NAME     = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${SERVICE}"
         VERSION        = 'v2.1'
         // BUILD_NUMBER Jenkins tarafından otomatik atanır.
         IMMUTABLE_TAG  = "${VERSION}-${BUILD_NUMBER}"
@@ -40,7 +42,7 @@ pipeline {
         timestamps()
         // Aynı job'un iki build'inin paralel çalışmasını engeller.
         disableConcurrentBuilds()
-        // 30 dakikada bitmezse build'i sonlandır.
+        // 30 dakikada bitmezse build'i sonlandır (5 servis × build/push/deploy).
         timeout(time: 30, unit: 'MINUTES')
     }
 
@@ -60,12 +62,11 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 2) INSTALL DEPENDENCIES — node:20-alpine
-        // npm ci → package-lock.json'dan deterministik kurulum.
-        // `npm install` yerine `npm ci` kullanılır çünkü:
-        //   - daha hızlı
-        //   - lock file'ı değiştirmez
-        //   - node_modules'u temizden kurar (reproducible build)
+        // 2) INSTALL DEPENDENCIES — node:20-alpine (5 servis)
+        // Her servis için npm ci → package-lock.json'dan deterministik
+        // kurulum. Tek container içinde 5 dir+npm ci sıralı koşar.
+        // Frontend için devDependencies dahil (Vite, Tailwind vs. quality
+        // gate'ler için lazım); diğer node servisleri için de tüm deps.
         // ------------------------------------------------------
         stage('Install Dependencies') {
             agent {
@@ -75,18 +76,24 @@ pipeline {
                 }
             }
             steps {
-                echo "[BAŞLA] ${SERVICE} bağımlılıkları yükleniyor (npm ci)"
-                dir("${SERVICE}") {
-                    sh 'npm ci'
+                script {
+                    SERVICES.split(',').each { svc ->
+                        echo "[BAŞLA] ${svc} bağımlılıkları yükleniyor (npm ci)"
+                        dir(svc) {
+                            sh 'npm ci'
+                        }
+                        echo "[BİTİŞ] ${svc} bağımlılıkları yüklendi"
+                    }
                 }
-                echo "[BİTİŞ] Bağımlılıklar yüklendi"
             }
         }
 
         // ------------------------------------------------------
-        // 3) LINT & COMPILE CHECK — node:20-alpine
+        // 3) LINT & COMPILE CHECK — node:20-alpine (5 servis)
         // Lint script'i yoksa atlar (|| echo).
-        // node --check ile JavaScript syntax doğrulaması yapılır.
+        // Node servisler için node --check ile syntax doğrulaması.
+        // Frontend için lint'i package.json'da tanımlanırsa koşar,
+        // yoksa atlar.
         // ------------------------------------------------------
         stage('Lint & Compile Check') {
             agent {
@@ -96,20 +103,22 @@ pipeline {
                 }
             }
             steps {
-                echo "[BAŞLA] Lint ve syntax kontrolü"
-                dir("${SERVICE}") {
-                    sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
-                    sh 'node --check src/index.js'
+                script {
+                    SERVICES.split(',').each { svc ->
+                        echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
+                        dir(svc) {
+                            sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
+                        }
+                        echo "[BİTİŞ] ${svc} lint/syntax OK"
+                    }
                 }
-                echo "[BİTİŞ] Lint ve syntax kontrolü OK"
             }
         }
 
         // ------------------------------------------------------
-        // 4) DEPENDENCY SCAN — node:20-alpine
+        // 4) DEPENDENCY SCAN — node:20-alpine (5 servis)
         // npm audit → bilinen CVE'li paket var mı bakar.
         // --audit-level=high: sadece 'high' ve 'critical' varsa fail.
-        // (moderate/low'da exit code 0 döner; pipeline kırılmaz.)
         // ------------------------------------------------------
         stage('Dependency Scan') {
             agent {
@@ -119,20 +128,23 @@ pipeline {
                 }
             }
             steps {
-                echo "[BAŞLA] Bağımlılık güvenlik taraması (npm audit, high+)"
-                dir("${SERVICE}") {
-                    sh 'npm audit --audit-level=high'
+                script {
+                    SERVICES.split(',').each { svc ->
+                        echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
+                        dir(svc) {
+                            sh 'npm audit --audit-level=high'
+                        }
+                        echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                    }
                 }
-                echo "[BİTİŞ] Bağımlılık taraması temiz"
             }
         }
 
         // ------------------------------------------------------
-        // 5) SONARCLOUD ANALYSIS — sonar-scanner-cli
+        // 5) SONARCLOUD ANALYSIS — sonar-scanner-cli (tek scan, 5 servis kaynak)
         // SonarCloud SaaS'a statik kod analizi gönderir.
         // Token Jenkins'te 'sonarcloud-token' credential'ında saklı.
-        // Image entrypoint'i sonar-scanner; sh çalıştırmak için sıfırla.
-        // -u root: scanner'ın cache klasörlerine yazabilmesi için.
+        // sonar.sources tüm 5 servisin kaynak dizinlerini kapsar.
         // ------------------------------------------------------
         stage('SonarCloud Analysis') {
             agent {
@@ -143,26 +155,24 @@ pipeline {
                 }
             }
             steps {
-                echo "[BAŞLA] SonarCloud analizi gönderiliyor"
+                echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
                 withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
-                    dir("${SERVICE}") {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.projectKey=HeaveZ_devops-roadmap \
-                              -Dsonar.organization=heavez \
-                              -Dsonar.host.url=https://sonarcloud.io \
-                              -Dsonar.login=$SONAR_TOKEN \
-                              -Dsonar.sources=src
-                        '''
-                    }
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=HeaveZ_devops-roadmap \
+                          -Dsonar.organization=heavez \
+                          -Dsonar.host.url=https://sonarcloud.io \
+                          -Dsonar.login=$SONAR_TOKEN \
+                          -Dsonar.sources=audit-logger/src,auth-server/src,task-manager/server.js,email-sender/src,frontend/src
+                    '''
                 }
                 echo "[BİTİŞ] SonarCloud raporu gönderildi"
             }
         }
 
         // ------------------------------------------------------
-        // 6) DOCKER BUILD (sadece main) — built-in
-        // İki tag ile build edilir:
+        // 6) DOCKER BUILD (sadece master) — built-in (5 servis)
+        // Her servis için iki tag ile build:
         //   - immutable:  v2.1-<build_number>
         //   - moving:     v2.1   (compose bunu pull eder)
         // Built-in agent: Jenkins container'ında docker CLI var,
@@ -172,24 +182,28 @@ pipeline {
             agent { label 'built-in' }
             when { branch 'master' }
             steps {
-                echo "[BAŞLA] Docker image build — ${IMAGE_NAME}:${IMMUTABLE_TAG} + :${VERSION}"
-                dir("${SERVICE}") {
-                    sh """
-                        docker build \
-                          -t ${IMAGE_NAME}:${IMMUTABLE_TAG} \
-                          -t ${IMAGE_NAME}:${VERSION} \
-                          .
-                    """
+                script {
+                    SERVICES.split(',').each { svc ->
+                        def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
+                        echo "[BAŞLA] ${svc} docker image build — ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
+                        sh """
+                            docker build \
+                              -t ${imageName}:${IMMUTABLE_TAG} \
+                              -t ${imageName}:${VERSION} \
+                              ./${svc}/
+                        """
+                        echo "[BİTİŞ] ${svc} image build edildi"
+                    }
                 }
-                echo "[BİTİŞ] Docker image build edildi"
             }
         }
 
         // ------------------------------------------------------
-        // 7) PUSH TO GHCR (sadece main) — built-in
-        // GitHub Container Registry'e login → iki tag'i de push.
-        // 'github-ghcr' credential'ı: username = GitHub kullanıcı adı,
-        //                             password = PAT (write:packages yetkili).
+        // 7) PUSH TO GHCR (sadece master) — built-in (5 servis)
+        // GitHub Container Registry'e login → her servisi iki tag ile push.
+        // 'github-ghcr' credential: username = GitHub kullanıcı adı,
+        //                           password = PAT (write:packages yetkili).
+        // Login bir kez, push 5 servis × 2 tag.
         // ------------------------------------------------------
         stage('Push to GHCR') {
             agent { label 'built-in' }
@@ -205,34 +219,42 @@ pipeline {
                         echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
                     '''
                 }
-                sh """
-                    docker push ${IMAGE_NAME}:${IMMUTABLE_TAG}
-                    docker push ${IMAGE_NAME}:${VERSION}
-                """
-                echo "[BİTİŞ] Image GHCR'a pushlandı (${IMMUTABLE_TAG} + ${VERSION})"
+                script {
+                    SERVICES.split(',').each { svc ->
+                        def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
+                        echo "[PUSH] ${imageName}:${IMMUTABLE_TAG} ve :${VERSION}"
+                        sh """
+                            docker push ${imageName}:${IMMUTABLE_TAG}
+                            docker push ${imageName}:${VERSION}
+                        """
+                    }
+                }
+                echo "[BİTİŞ] 5 servis × 2 tag GHCR'a pushlandı"
             }
         }
 
         // ------------------------------------------------------
-        // 8) DEPLOY (sadece main) — built-in
-        // docker compose ile sadece audit-logger servisi yenilenir.
-        // compose dosyası repo kök dizininde: docker-compose.prod.yml
-        // .env dosyası VPS'te manuel olarak hazırlanmış olmalı.
+        // 8) DEPLOY (sadece master) — built-in (tek compose komutu)
+        // docker compose ile tüm servisleri pull edip yeniden başlatır.
+        // .env dosyası Jenkins 'taskly-env-prod' Secret file'dan gelir.
+        // db ve kafka image değişmediği için recreate olmaz (volume korunur);
+        // 5 uygulama servisi yeni :v2.1 image ile recreate olur.
+        // nginx config değişmemişse o da etkilenmez.
         // ------------------------------------------------------
         stage('Deploy') {
             agent { label 'built-in' }
             when { branch 'master' }
             steps {
-                echo "[BAŞLA] Production deploy (audit-logger)"
+                echo "[BAŞLA] Production deploy (5 servis, docker compose up -d)"
                 withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
                     sh '''
                         cp "$ENV_FILE" .env
-                        docker compose -f docker-compose.prod.yml pull audit-logger
-                        docker compose -f docker-compose.prod.yml up -d audit-logger
+                        docker compose -f docker-compose.prod.yml pull
+                        docker compose -f docker-compose.prod.yml up -d
                         rm -f .env
                     '''
                 }
-                echo "[BİTİŞ] audit-logger deploy tamamlandı"
+                echo "[BİTİŞ] Production deploy tamamlandı"
             }
         }
     }
@@ -256,4 +278,3 @@ pipeline {
         }
     }
 }
-
