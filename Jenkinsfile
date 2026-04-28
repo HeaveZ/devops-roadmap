@@ -8,7 +8,7 @@
 //  Akış:
 //    - Her branch (PR dahil): Checkout → Install → Lint/Compile
 //      → Dependency Scan → SonarCloud
-//    - Sadece 'main' branch: Docker Build → GHCR Push → Deploy
+//    - Sadece 'master' branch: Docker Build → GHCR Push → Deploy
 //
 //  Etiketleme stratejisi (çift tag):
 //    - :v2.1-${BUILD_NUMBER}  → immutable, izlenebilir
@@ -170,7 +170,7 @@ pipeline {
         // ------------------------------------------------------
         stage('Docker Build') {
             agent { label 'built-in' }
-            when { branch 'main' }
+            when { branch 'master' }
             steps {
                 echo "[BAŞLA] Docker image build — ${IMAGE_NAME}:${IMMUTABLE_TAG} + :${VERSION}"
                 dir("${SERVICE}") {
@@ -193,7 +193,7 @@ pipeline {
         // ------------------------------------------------------
         stage('Push to GHCR') {
             agent { label 'built-in' }
-            when { branch 'main' }
+            when { branch 'master' }
             steps {
                 echo "[BAŞLA] GHCR login ve image push"
                 withCredentials([usernamePassword(
@@ -221,7 +221,7 @@ pipeline {
         // ------------------------------------------------------
         stage('Deploy') {
             agent { label 'built-in' }
-            when { branch 'main' }
+            when { branch 'master' }
             steps {
                 echo "[BAŞLA] Production deploy (audit-logger)"
                 sh '''
