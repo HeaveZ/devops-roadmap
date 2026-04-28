@@ -224,10 +224,14 @@ pipeline {
             when { branch 'master' }
             steps {
                 echo "[BAŞLA] Production deploy (audit-logger)"
-                sh '''
-                    docker compose -f docker-compose.prod.yml pull audit-logger
-                    docker compose -f docker-compose.prod.yml up -d audit-logger
-                '''
+                withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
+                    sh '''
+                        cp "$ENV_FILE" .env
+                        docker compose -f docker-compose.prod.yml pull audit-logger
+                        docker compose -f docker-compose.prod.yml up -d audit-logger
+                        rm -f .env
+                    '''
+                }
                 echo "[BİTİŞ] audit-logger deploy tamamlandı"
             }
         }
