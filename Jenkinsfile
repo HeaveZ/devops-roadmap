@@ -288,4 +288,4 @@ pipeline {
             echo "Pipeline BAŞARILI: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
     }
-}
+
