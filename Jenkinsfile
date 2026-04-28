@@ -13,11 +13,16 @@
 //  Etiketleme stratejisi (çift tag):
 //    - :v2.1-${BUILD_NUMBER}  → immutable, izlenebilir
 //    - :v2.1                  → moving pointer, compose tarafı bunu pull eder
+//
+//  Multi-agent pattern: her stage uygun image'da çalışır.
+//    - Node tabanlı stage'ler:  node:20-alpine
+//    - SonarCloud:              sonarsource/sonar-scanner-cli:latest
+//    - Build / Push / Deploy:   built-in (host docker daemon)
 // ============================================================
 
 pipeline {
-    // Jenkins master üzerinde çalışıyoruz (aynı VPS'te Docker da var).
-    agent any
+    // Top-level agent yok; her stage kendi container'ında.
+    agent none
 
     // Pipeline genelinde kullanılacak değişkenler.
     environment {
@@ -42,10 +47,11 @@ pipeline {
     stages {
 
         // ------------------------------------------------------
-        // 1) CHECKOUT
+        // 1) CHECKOUT — built-in
         // Git repoyu Jenkins workspace'ine indirir.
         // ------------------------------------------------------
         stage('Checkout') {
+            agent { label 'built-in' }
             steps {
                 echo "[BAŞLA] Kaynak kod checkout ediliyor (branch=${env.BRANCH_NAME ?: 'n/a'})"
                 checkout scm
@@ -54,7 +60,7 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 2) INSTALL DEPENDENCIES
+        // 2) INSTALL DEPENDENCIES — node:20-alpine
         // npm ci → package-lock.json'dan deterministik kurulum.
         // `npm install` yerine `npm ci` kullanılır çünkü:
         //   - daha hızlı
@@ -62,6 +68,12 @@ pipeline {
         //   - node_modules'u temizden kurar (reproducible build)
         // ------------------------------------------------------
         stage('Install Dependencies') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo "[BAŞLA] ${SERVICE} bağımlılıkları yükleniyor (npm ci)"
                 dir("${SERVICE}") {
@@ -72,11 +84,17 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 3) LINT & COMPILE CHECK
+        // 3) LINT & COMPILE CHECK — node:20-alpine
         // Lint script'i yoksa atlar (|| echo).
         // node --check ile JavaScript syntax doğrulaması yapılır.
         // ------------------------------------------------------
         stage('Lint & Compile Check') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo "[BAŞLA] Lint ve syntax kontrolü"
                 dir("${SERVICE}") {
@@ -88,12 +106,18 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 4) DEPENDENCY SCAN
+        // 4) DEPENDENCY SCAN — node:20-alpine
         // npm audit → bilinen CVE'li paket var mı bakar.
         // --audit-level=high: sadece 'high' ve 'critical' varsa fail.
         // (moderate/low'da exit code 0 döner; pipeline kırılmaz.)
         // ------------------------------------------------------
         stage('Dependency Scan') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo "[BAŞLA] Bağımlılık güvenlik taraması (npm audit, high+)"
                 dir("${SERVICE}") {
@@ -104,12 +128,20 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 5) SONARCLOUD ANALYSIS
+        // 5) SONARCLOUD ANALYSIS — sonar-scanner-cli
         // SonarCloud SaaS'a statik kod analizi gönderir.
         // Token Jenkins'te 'sonarcloud-token' credential'ında saklı.
-        // sonar-scanner CLI'sinin VPS'te PATH'te olduğu varsayılıyor.
+        // Image entrypoint'i sonar-scanner; sh çalıştırmak için sıfırla.
+        // -u root: scanner'ın cache klasörlerine yazabilmesi için.
         // ------------------------------------------------------
         stage('SonarCloud Analysis') {
+            agent {
+                docker {
+                    image 'sonarsource/sonar-scanner-cli:latest'
+                    reuseNode true
+                    args '-u root --entrypoint=""'
+                }
+            }
             steps {
                 echo "[BAŞLA] SonarCloud analizi gönderiliyor"
                 withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
@@ -129,12 +161,15 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 6) DOCKER BUILD (sadece main)
+        // 6) DOCKER BUILD (sadece main) — built-in
         // İki tag ile build edilir:
         //   - immutable:  v2.1-<build_number>
         //   - moving:     v2.1   (compose bunu pull eder)
+        // Built-in agent: Jenkins container'ında docker CLI var,
+        // host docker.sock üzerinden host daemon'a bağlanır.
         // ------------------------------------------------------
         stage('Docker Build') {
+            agent { label 'built-in' }
             when { branch 'main' }
             steps {
                 echo "[BAŞLA] Docker image build — ${IMAGE_NAME}:${IMMUTABLE_TAG} + :${VERSION}"
@@ -151,12 +186,13 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 7) PUSH TO GHCR (sadece main)
+        // 7) PUSH TO GHCR (sadece main) — built-in
         // GitHub Container Registry'e login → iki tag'i de push.
         // 'github-ghcr' credential'ı: username = GitHub kullanıcı adı,
         //                             password = PAT (write:packages yetkili).
         // ------------------------------------------------------
         stage('Push to GHCR') {
+            agent { label 'built-in' }
             when { branch 'main' }
             steps {
                 echo "[BAŞLA] GHCR login ve image push"
@@ -178,12 +214,13 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 8) DEPLOY (sadece main)
+        // 8) DEPLOY (sadece main) — built-in
         // docker compose ile sadece audit-logger servisi yenilenir.
         // compose dosyası repo kök dizininde: docker-compose.prod.yml
         // .env dosyası VPS'te manuel olarak hazırlanmış olmalı.
         // ------------------------------------------------------
         stage('Deploy') {
+            agent { label 'built-in' }
             when { branch 'main' }
             steps {
                 echo "[BAŞLA] Production deploy (audit-logger)"
@@ -198,11 +235,14 @@ pipeline {
 
     // ----------------------------------------------------------
     // POST-BUILD
+    // agent none olduğu için sh çağrısı için node bloğu lazım.
     // Her durumda GHCR'dan logout, sonuca göre bildirim.
     // ----------------------------------------------------------
     post {
         always {
-            sh 'docker logout ghcr.io || true'
+            node('built-in') {
+                sh 'docker logout ghcr.io || true'
+            }
         }
         failure {
             echo "Pipeline BAŞARISIZ: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
