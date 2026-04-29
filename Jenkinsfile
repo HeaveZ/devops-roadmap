@@ -250,10 +250,15 @@ pipeline {
                 echo "[BAŞLA] Production deploy (5 servis, docker compose up -d)"
                 withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
                     sh '''
-                        cp "$ENV_FILE" .env
+                        set -e
+                        # Onceki build basarisiz biterse .env workspace'te kalmis
+                        # ve farkli uid'li olabilir; once temizle, sonra olusturul.
+                        # Cleanup'i her durumda calistir (trap).
+                        trap 'rm -f .env' EXIT
+                        rm -f .env
+                        install -m 600 "$ENV_FILE" .env
                         docker compose -f docker-compose.prod.yml pull
                         docker compose -f docker-compose.prod.yml up -d
-                        rm -f .env
                     '''
                 }
                 echo "[BİTİŞ] Production deploy tamamlandı"
