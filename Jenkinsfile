@@ -28,8 +28,10 @@ pipeline {
 
     // Pipeline genelinde kullanılacak değişkenler.
     environment {
-        // 5 servis listesi — comma-separated; loop'larda split(',')
-        SERVICES       = 'audit-logger,auth-server,task-manager,email-sender,frontend'
+        // Node.js servisleri (npm ci/lint/audit stage'leri için)
+        NODE_SERVICES  = 'audit-logger,auth-server,task-manager,email-sender,frontend'
+        // Build & push edilen tüm image'lar (nginx reverse-proxy de dahil)
+        SERVICES       = 'audit-logger,auth-server,task-manager,email-sender,frontend,nginx'
         GHCR_REGISTRY  = 'ghcr.io'
         GHCR_NAMESPACE = 'heavez'
         VERSION        = 'v2.1'
@@ -77,7 +79,7 @@ pipeline {
             }
             steps {
                 script {
-                    SERVICES.split(',').each { svc ->
+                    NODE_SERVICES.split(',').each { svc ->
                         echo "[BAŞLA] ${svc} bağımlılıkları yükleniyor (npm ci)"
                         dir(svc) {
                             sh 'npm ci'
@@ -104,7 +106,7 @@ pipeline {
             }
             steps {
                 script {
-                    SERVICES.split(',').each { svc ->
+                    NODE_SERVICES.split(',').each { svc ->
                         echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
                         dir(svc) {
                             sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
@@ -129,7 +131,7 @@ pipeline {
             }
             steps {
                 script {
-                    SERVICES.split(',').each { svc ->
+                    NODE_SERVICES.split(',').each { svc ->
                         echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
                         dir(svc) {
                             sh 'npm audit --audit-level=high'
@@ -229,7 +231,7 @@ pipeline {
                         """
                     }
                 }
-                echo "[BİTİŞ] 5 servis × 2 tag GHCR'a pushlandı"
+                echo "[BİTİŞ] ${SERVICES.split(',').size()} servis × 2 tag GHCR'a pushlandı"
             }
         }
 
