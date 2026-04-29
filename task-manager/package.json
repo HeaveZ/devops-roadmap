@@ -1,10 +1,11 @@
 {
   "name": "task-manager",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Task management microservice",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "lint": "node --check server.js"
   },
   "type": "commonjs",
   "dependencies": {
@@ -14,7 +15,7 @@
     "pg": "^8.20.0",
     "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.1.1",
     "kafkajs": "^2.2.4"
   }
 }
