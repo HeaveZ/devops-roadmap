@@ -7,9 +7,9 @@ interface SpinnerProps {
 
 export function Spinner({ label, className }: SpinnerProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-3 py-8 text-muted text-sm', className)}>
-      <div className="w-8 h-8 border-2 border-border border-t-brand-bright rounded-full animate-spin" />
-      {label && <span>{label}</span>}
+    <div className={cn('flex flex-col items-center justify-center gap-4 py-16 text-ink-secondary text-sm', className)}>
+      <div className="w-10 h-10 border-2 border-border/40 border-t-brand rounded-full animate-spin" />
+      {label && <span className="font-medium">{label}</span>}
     </div>
   );
 }

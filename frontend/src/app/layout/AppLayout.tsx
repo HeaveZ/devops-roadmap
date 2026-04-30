@@ -1,20 +1,21 @@
 import { Outlet } from 'react-router-dom';
 import { ErrorBoundary } from 'shared/ui/ErrorBoundary';
-import { Header } from './Header';
-import { Footer } from './Footer';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
 
 export function AppLayout() {
   return (
-    <div className="relative min-h-screen">
-      <div className="grid-bg" />
-      <div className="relative z-10 max-w-[960px] mx-auto px-6 py-9">
-        <Header />
-        <main>
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
+    <div className="flex min-h-screen bg-navy-950">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar />
+        <main className="flex-1 p-8 overflow-y-auto">
+          <div className="max-w-[1200px] mx-auto">
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
+          </div>
         </main>
-        <Footer />
       </div>
     </div>
   );

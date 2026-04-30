@@ -173,7 +173,10 @@ function KanbanCard({ task, index, onNavigate }: { task: Task; index: number; on
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
+          role="link"
+          tabIndex={0}
           onClick={onNavigate}
+          onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(); }}
           className={cn(
             'bg-navy-900 border border-border rounded-lg p-3.5 cursor-grab active:cursor-grabbing transition-shadow hover:border-brand/30',
             snapshot.isDragging && 'shadow-glow border-brand/40',

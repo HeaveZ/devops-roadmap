@@ -35,21 +35,21 @@ export function Modal({
       e.preventDefault();
       onClose();
     };
+    const handleClick = (e: MouseEvent) => {
+      if (closeOnBackdrop && e.target === el) onClose();
+    };
     el.addEventListener('cancel', handleCancel);
-    return () => el.removeEventListener('cancel', handleCancel);
-  }, [onClose]);
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
-    if (closeOnBackdrop && e.target === dialogRef.current) {
-      onClose();
-    }
-  };
+    el.addEventListener('click', handleClick);
+    return () => {
+      el.removeEventListener('cancel', handleCancel);
+      el.removeEventListener('click', handleClick);
+    };
+  }, [onClose, closeOnBackdrop]);
 
   return (
     <dialog
       ref={dialogRef}
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-navy-900/90 backdrop-blur-md animate-fadeIn backdrop:bg-transparent p-0 m-auto"
-      onClick={handleBackdropClick}
     >
       <div
         className={cn(

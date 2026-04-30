@@ -34,7 +34,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const show = useCallback(
     (message: string, kind: ToastKind = 'info') => {
-      const id = Date.now() + Math.random();
+      const id = Date.now() + crypto.getRandomValues(new Uint32Array(1))[0];
       setItems((prev) => [...prev, { id, kind, message }]);
       window.setTimeout(() => dismiss(id), 4000);
     },
@@ -54,23 +54,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-5 right-5 z-[2000] flex flex-col gap-2 max-w-sm">
+      <div className="fixed top-5 right-5 z-[2000] flex flex-col gap-2.5 max-w-sm">
         {items.map((t) => (
           <output
             key={t.id}
             className={cn(
-              'block px-4 py-3 rounded-lg border text-sm shadow-lg animate-fadeIn cursor-pointer',
+              'block px-5 py-3.5 rounded-xl border text-sm shadow-card-hover backdrop-blur-md animate-popIn',
               t.kind === 'success' &&
-                'bg-status-green/15 border-status-green/40 text-status-green',
+                'bg-status-green/10 border-status-green/30 text-status-green',
               t.kind === 'error' &&
-                'bg-status-red/15 border-status-red/40 text-status-red',
-              t.kind === 'info' && 'bg-navy-800 border-border text-ink',
+                'bg-status-red/10 border-status-red/30 text-status-red',
+              t.kind === 'info' && 'bg-navy-800/90 border-border/60 text-ink',
             )}
           >
             <button
               type="button"
               onClick={() => dismiss(t.id)}
-              className="w-full text-left text-inherit"
+              className="w-full text-left text-inherit font-medium"
             >
               {t.message}
             </button>

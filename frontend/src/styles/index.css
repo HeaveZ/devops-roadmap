@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -14,14 +14,34 @@
     height: 100%;
   }
   body {
-    @apply bg-navy-900 font-sans text-ink antialiased;
+    @apply bg-navy-950 font-sans text-ink antialiased;
     margin: 0;
+  }
+  ::selection {
+    @apply bg-brand/30 text-ink;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted/40;
   }
 }
 
 @layer components {
-  .grid-bg {
-    @apply pointer-events-none fixed inset-0 z-0 bg-grid;
-    background-size: 40px 40px;
+  .premium-card {
+    @apply bg-navy-800/80 backdrop-blur-sm border border-border/60 rounded-2xl shadow-card transition-all duration-200;
+  }
+  .premium-card:hover {
+    @apply shadow-card-hover border-border;
+  }
+  .premium-input {
+    @apply w-full bg-navy-900/80 border border-border/60 rounded-xl px-4 py-3 text-sm text-ink placeholder:text-muted/40 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/20 transition-all;
   }
 }
