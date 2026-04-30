@@ -7,7 +7,8 @@ export function getSection(task: Task): string {
 export function groupBySection(tasks: Task[]): Record<string, Task[]> {
   return tasks.reduce<Record<string, Task[]>>((acc, task) => {
     const key = getSection(task);
-    (acc[key] ??= []).push(task);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(task);
     return acc;
   }, {});
 }

@@ -34,17 +34,15 @@ export function FileDropzone() {
   };
 
   return (
-    <div
+    <button
+      type="button"
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);
       }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={onDrop}
+      onDrop={onDrop as unknown as React.DragEventHandler<HTMLButtonElement>}
       onClick={() => inputRef.current?.click()}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
-      role="button"
-      tabIndex={0}
       className={cn(
         'cursor-pointer rounded-xl border-2 border-dashed px-6 py-12 flex flex-col items-center justify-center text-center transition-all',
         dragOver
@@ -71,6 +69,6 @@ export function FileDropzone() {
           : 'Dosya yuklemek icin tikla veya surukle'}
       </div>
       <div className="text-xs text-muted mt-1">Maks. 10MB</div>
-    </div>
+    </button>
   );
 }

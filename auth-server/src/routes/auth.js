@@ -158,7 +158,7 @@ router.post('/verify-code', async (req, res) => {
 router.get('/verify', (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Yetkilendirme basliqi eksik' });
     }
 

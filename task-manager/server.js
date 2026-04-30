@@ -220,7 +220,7 @@ async function initDB() {
 // --- AUTH MIDDLEWARE (auth-server uzerinden dogrulama) ---
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!authHeader?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Yetkilendirme gerekli" });
   }
   try {
@@ -346,10 +346,10 @@ app.post("/api/track", async (req, res) => {
 app.post("/api/tasks", authMiddleware, async (req, res) => {
   try {
     const { title, section, description, priority, assignee_email, due_date, sprint_id } = req.body;
-    if (!title || !title.trim()) {
+    if (!title?.trim()) {
       return res.status(400).json({ error: "Baslik gerekli" });
     }
-    if (!section || !section.trim()) {
+    if (!section?.trim()) {
       return res.status(400).json({ error: "Section gerekli" });
     }
     const { rows } = await pool.query(
@@ -437,7 +437,9 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Gorev bulunamadi" });
     }
-    const action = status ? "TASK_STATUS_CHANGED" : completed !== undefined ? (completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED") : "TASK_UPDATED";
+    let action = "TASK_UPDATED";
+    if (status) action = "TASK_STATUS_CHANGED";
+    else if (completed !== undefined) action = completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED";
     auditLog(action, req.user, "task", id, rows[0].title);
     res.json(rows[0]);
   } catch (err) {
@@ -450,7 +452,7 @@ app.post("/api/tasks/:id/subtasks", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
-    if (!title || !title.trim()) {
+    if (!title?.trim()) {
       return res.status(400).json({ error: "Baslik gerekli" });
     }
     const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
@@ -510,7 +512,7 @@ app.post("/api/tasks/:id/comments", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { text } = req.body;
-    if (!text || !text.trim()) {
+    if (!text?.trim()) {
       return res.status(400).json({ error: "Yorum metni gerekli" });
     }
     const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
@@ -561,7 +563,7 @@ app.get("/api/labels", async (req, res) => {
 app.post("/api/labels", authMiddleware, async (req, res) => {
   try {
     const { name, color } = req.body;
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ error: "Etiket adi gerekli" });
     }
     const { rows } = await pool.query(
@@ -648,7 +650,7 @@ app.get("/api/sprints", async (req, res) => {
 app.post("/api/sprints", authMiddleware, async (req, res) => {
   try {
     const { name, start_date, end_date } = req.body;
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ error: "Sprint adi gerekli" });
     }
     const { rows } = await pool.query(

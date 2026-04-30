@@ -7,16 +7,16 @@ import { EmptyState } from 'shared/ui/EmptyState';
 export function FilesPage() {
   const { data: files = [], isLoading } = useFiles();
 
+  const renderContent = () => {
+    if (isLoading) return <Spinner label="Dosyalar yukleniyor..." />;
+    if (files.length === 0) return <EmptyState>{'// Henuz dosya yuklenmemis'}</EmptyState>;
+    return <FileList files={files} />;
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <FileDropzone />
-      {isLoading ? (
-        <Spinner label="Dosyalar yukleniyor..." />
-      ) : files.length === 0 ? (
-        <EmptyState>{'// Henuz dosya yuklenmemis'}</EmptyState>
-      ) : (
-        <FileList files={files} />
-      )}
+      {renderContent()}
     </div>
   );
 }

@@ -76,12 +76,8 @@ function Pill({
   value: number;
   accent?: 'orange' | 'red';
 }) {
-  const color =
-    accent === 'orange'
-      ? 'text-accent-orange'
-      : accent === 'red'
-        ? 'text-status-red'
-        : 'text-ink';
+  const colorMap = { orange: 'text-accent-orange', red: 'text-status-red' };
+  const color = accent ? colorMap[accent] : 'text-ink';
   return (
     <div className="flex-1 rounded-xl border border-border bg-navy-800 px-4 py-3 text-center">
       <div className={`text-2xl font-extrabold ${color}`}>{value}</div>

@@ -4,13 +4,26 @@ import { Avatar } from 'shared/ui/Avatar';
 import { Dropdown } from 'shared/ui/Dropdown';
 import { ROUTES } from '../router/routes';
 
+function UserMenuTrigger({ open, toggle, email, avatarData }: { open: boolean; toggle: () => void; email: string; avatarData: string | null }) {
+  const displayName = email.includes('@') ? email.split('@')[0] : email;
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-navy-800 border border-border hover:border-brand transition-colors"
+    >
+      <Avatar src={avatarData} name={email} size="sm" />
+      <span className="text-sm text-ink">{displayName}</span>
+      <span className="text-xs text-muted">{open ? '▲' : '▼'}</span>
+    </button>
+  );
+}
+
 export function UserMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   if (!user) return null;
-
-  const displayName = user.email.includes('@') ? user.email.split('@')[0] : user.email;
 
   return (
     <Dropdown
@@ -39,15 +52,7 @@ export function UserMenu() {
         },
       ]}
       trigger={({ open, toggle }) => (
-        <button
-          type="button"
-          onClick={toggle}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-navy-800 border border-border hover:border-brand transition-colors"
-        >
-          <Avatar src={user.avatarData ?? null} name={user.email} size="sm" />
-          <span className="text-sm text-ink">{displayName}</span>
-          <span className="text-xs text-muted">{open ? '▲' : '▼'}</span>
-        </button>
+        <UserMenuTrigger open={open} toggle={toggle} email={user.email} avatarData={user.avatarData ?? null} />
       )}
     />
   );
