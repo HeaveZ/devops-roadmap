@@ -210,6 +210,22 @@ pipeline {
         }
 
         // ------------------------------------------------------
+        // 5b) QUALITY GATE — SonarCloud Quality Gate sonucunu bekler.
+        // Eğer Quality Gate FAILED dönerse pipeline burada patlar.
+        // Not: SonarCloud webhook'u Jenkins'e tanımlı olmalıdır.
+        // ------------------------------------------------------
+        stage('Quality Gate') {
+            agent { label 'built-in' }
+            steps {
+                echo "[BAŞLA] SonarCloud Quality Gate sonucu bekleniyor..."
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+                echo "[BİTİŞ] Quality Gate geçti"
+            }
+        }
+
+        // ------------------------------------------------------
         // 6) DOCKER BUILD (master + PR) — paralel (6 servis)
         // SERVICES = NODE_SERVICES + nginx. Her servis kendi node'unda
         // build edilir, executor sayısı doğal sınır.

@@ -484,6 +484,22 @@ app.delete("/api/files/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// Audit loglari getir
+app.get("/api/audit-logs", authMiddleware, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = parseInt(req.query.offset) || 0;
+    const { rows } = await pool.query(
+      "SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+      [limit, offset]
+    );
+    const countResult = await pool.query("SELECT COUNT(*) as total FROM audit_logs");
+    res.json({ logs: rows, total: parseInt(countResult.rows[0].total) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Sunucuyu baslat
 app.listen(PORT, async () => {
   console.log(`Task Manager http://localhost:${PORT} adresinde calisiyor`);

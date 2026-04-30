@@ -7,8 +7,10 @@ import { UserMenu } from './UserMenu';
 
 const navItems = [
   { to: ROUTES.tasks, label: 'Gorevler' },
+  { to: ROUTES.kanban, label: 'Kanban' },
   { to: ROUTES.files, label: 'Dosyalar' },
   { to: ROUTES.dashboard, label: 'Dashboard' },
+  { to: ROUTES.activity, label: 'Aktivite' },
 ] as const;
 
 export function Header() {
