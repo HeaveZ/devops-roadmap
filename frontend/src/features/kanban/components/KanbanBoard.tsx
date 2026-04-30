@@ -117,50 +117,44 @@ export function KanbanBoard() {
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {COLUMNS.map((col) => {
-            const items = columnTasks[col.id];
-            return (
-              <div
-                key={col.id}
-                className={cn(
-                  'bg-navy-800 border border-border rounded-xl border-t-2',
-                  col.accentClass,
-                )}
-              >
-                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-ink">{col.title}</h3>
-                  <span className="text-[11px] text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                    {items.length}
-                  </span>
-                </div>
-
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={cn(
-                        'p-3 min-h-[280px] space-y-2 transition-colors',
-                        snapshot.isDraggingOver && 'bg-brand/5',
-                      )}
-                    >
-                      {items.map((task, index) => (
-                        <KanbanCard key={task.id} task={task} index={index} onNavigate={() => navigate(`/tasks/${task.id}`)} />
-                      ))}
-                      {provided.placeholder}
-                      {items.length === 0 && (
-                        <EmptyState className="border-none bg-transparent py-16">
-                          Bu kolonda gorev yok
-                        </EmptyState>
-                      )}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
-            );
-          })}
+          {COLUMNS.map((col) => (
+            <KanbanColumn
+              key={col.id}
+              column={col}
+              items={columnTasks[col.id]}
+              onNavigate={(taskId) => navigate(`/tasks/${taskId}`)}
+            />
+          ))}
         </div>
       </DragDropContext>
+    </div>
+  );
+}
+
+function KanbanColumn({ column, items, onNavigate }: { column: Column; items: Task[]; onNavigate: (id: string | number) => void }) {
+  return (
+    <div className={cn('bg-navy-800 border border-border rounded-xl border-t-2', column.accentClass)}>
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <h3 className="text-sm font-bold text-ink">{column.title}</h3>
+        <span className="text-[11px] text-muted bg-white/5 px-2 py-0.5 rounded-full">{items.length}</span>
+      </div>
+      <Droppable droppableId={column.id}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={cn('p-3 min-h-[280px] space-y-2 transition-colors', snapshot.isDraggingOver && 'bg-brand/5')}
+          >
+            {items.map((task, index) => (
+              <KanbanCard key={task.id} task={task} index={index} onNavigate={() => onNavigate(task.id)} />
+            ))}
+            {provided.placeholder}
+            {items.length === 0 && (
+              <EmptyState className="border-none bg-transparent py-16">Bu kolonda gorev yok</EmptyState>
+            )}
+          </div>
+        )}
+      </Droppable>
     </div>
   );
 }

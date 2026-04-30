@@ -372,74 +372,53 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
   }
 });
 
+// Task patch icin field'lari topla
+function buildTaskPatch(body) {
+  const VALID_PRIORITIES = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
+  const VALID_STATUSES = ['todo', 'in_progress', 'in_review', 'done'];
+  const updates = [];
+  const values = [];
+  let idx = 1;
+
+  const addField = (col, val) => { updates.push(`${col} = $${idx++}`); values.push(val); };
+
+  if (body.completed !== undefined) addField('completed', body.completed);
+  if (body.priority !== undefined) {
+    if (!VALID_PRIORITIES.includes(body.priority)) return { error: "Gecersiz oncelik degeri" };
+    addField('priority', body.priority);
+  }
+  if (body.description !== undefined) addField('description', body.description);
+  if (body.status !== undefined) {
+    if (!VALID_STATUSES.includes(body.status)) return { error: "Gecersiz durum degeri" };
+    addField('status', body.status);
+    const autoCompleted = body.status === 'done' ? true : (body.completed === undefined ? false : undefined);
+    if (autoCompleted !== undefined) addField('completed', autoCompleted);
+  }
+  if (body.assignee_email !== undefined) addField('assignee_email', body.assignee_email || null);
+  if (body.due_date !== undefined) addField('due_date', body.due_date || null);
+  if (body.sprint_id !== undefined) addField('sprint_id', body.sprint_id || null);
+
+  return { updates, values, idx };
+}
+
 // Gorev guncelle (tum alanlar)
 app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { completed, priority, description, status, assignee_email, due_date, sprint_id } = req.body;
-    const updates = [];
-    const values = [];
-    let idx = 1;
+    const patch = buildTaskPatch(req.body);
+    if (patch.error) return res.status(400).json({ error: patch.error });
+    if (patch.updates.length === 0) return res.status(400).json({ error: "Guncellenecek alan belirtilmedi" });
 
-    if (completed !== undefined) {
-      updates.push(`completed = $${idx++}`);
-      values.push(completed);
-    }
-    if (priority !== undefined) {
-      const validPriorities = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
-      if (!validPriorities.includes(priority)) {
-        return res.status(400).json({ error: "Gecersiz oncelik degeri" });
-      }
-      updates.push(`priority = $${idx++}`);
-      values.push(priority);
-    }
-    if (description !== undefined) {
-      updates.push(`description = $${idx++}`);
-      values.push(description);
-    }
-    if (status !== undefined) {
-      const validStatuses = ['todo', 'in_progress', 'in_review', 'done'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: "Gecersiz durum degeri" });
-      }
-      updates.push(`status = $${idx++}`);
-      values.push(status);
-      // Status done olunca completed=true, degilse false
-      if (status === 'done') {
-        updates.push(`completed = $${idx++}`);
-        values.push(true);
-      } else if (completed === undefined) {
-        updates.push(`completed = $${idx++}`);
-        values.push(false);
-      }
-    }
-    if (assignee_email !== undefined) {
-      updates.push(`assignee_email = $${idx++}`);
-      values.push(assignee_email || null);
-    }
-    if (due_date !== undefined) {
-      updates.push(`due_date = $${idx++}`);
-      values.push(due_date || null);
-    }
-    if (sprint_id !== undefined) {
-      updates.push(`sprint_id = $${idx++}`);
-      values.push(sprint_id || null);
-    }
-
-    if (updates.length === 0) {
-      return res.status(400).json({ error: "Guncellenecek alan belirtilmedi" });
-    }
-    values.push(id);
+    patch.values.push(id);
     const { rows } = await pool.query(
-      `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-      values
+      `UPDATE tasks SET ${patch.updates.join(', ')} WHERE id = $${patch.idx} RETURNING *`,
+      patch.values
     );
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Gorev bulunamadi" });
-    }
+    if (rows.length === 0) return res.status(404).json({ error: "Gorev bulunamadi" });
+
     let action = "TASK_UPDATED";
-    if (status) action = "TASK_STATUS_CHANGED";
-    else if (completed !== undefined) action = completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED";
+    if (req.body.status) action = "TASK_STATUS_CHANGED";
+    else if (req.body.completed !== undefined) action = req.body.completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED";
     auditLog(action, req.user, "task", id, rows[0].title);
     res.json(rows[0]);
   } catch (err) {

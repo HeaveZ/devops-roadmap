@@ -18,6 +18,18 @@ export interface TaskFiltersApi {
   activeFilterCount: number;
 }
 
+function matchesFilters(t: Task, state: TaskFilterState, query: string): boolean {
+  if (query && !getTaskTitle(t).toLowerCase().includes(query)) return false;
+  if (state.status === 'active' && t.completed) return false;
+  if (state.status === 'completed' && !t.completed) return false;
+  if (state.section !== 'all' && getSection(t) !== state.section) return false;
+  if (state.priority !== 'all' && (t.priority ?? 'none') !== state.priority) return false;
+  if (state.assignee !== 'all' && (t.assignee_email ?? '') !== state.assignee) return false;
+  if (state.label !== 'all' && !(t.labels ?? []).some((l) => l.name === state.label)) return false;
+  if (state.sprint !== 'all' && String(t.sprint_id ?? '') !== state.sprint) return false;
+  return true;
+}
+
 const DEFAULT_STATE: TaskFilterState = {
   search: '',
   status: 'all',
@@ -39,17 +51,7 @@ export function useTaskFilters(tasks: Task[]): TaskFiltersApi {
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
-    return tasks.filter((t) => {
-      if (q && !getTaskTitle(t).toLowerCase().includes(q)) return false;
-      if (state.status === 'active' && t.completed) return false;
-      if (state.status === 'completed' && !t.completed) return false;
-      if (state.section !== 'all' && getSection(t) !== state.section) return false;
-      if (state.priority !== 'all' && (t.priority ?? 'none') !== state.priority) return false;
-      if (state.assignee !== 'all' && (t.assignee_email ?? '') !== state.assignee) return false;
-      if (state.label !== 'all' && !(t.labels ?? []).some((l) => l.name === state.label)) return false;
-      if (state.sprint !== 'all' && String(t.sprint_id ?? '') !== state.sprint) return false;
-      return true;
-    });
+    return tasks.filter((t) => matchesFilters(t, state, q));
   }, [tasks, debouncedSearch, state]);
 
   const activeFilterCount =
