@@ -1,29 +1,33 @@
 // ============================================================
 //  Jenkinsfile — Taskly multi-service CI/CD pipeline
 // ------------------------------------------------------------
-//  5 mikroservis için tek pipeline:
-//    audit-logger, auth-server, task-manager, email-sender, frontend
+//  6 mikroservis için tek pipeline:
+//    audit-logger, auth-server, task-manager, email-sender, frontend, nginx
 //
 //  Akış:
 //    - Her branch (PR dahil): Checkout → Install → Lint → Audit → Sonar
-//    - Sadece 'master' branch: Build → Push → Deploy (tüm servisler)
+//    - Sadece 'master' branch: Build → Push → Deploy
+//
+//  Paralelleştirme: Install/Lint/Audit/Build/Push stage'leri
+//    NODE_SERVICES (veya SERVICES).collectEntries pattern ile paralel
+//    çalışır. Her parallel branch: node('built-in') → unstash → iş.
+//    Built-in executor sayısı doğal RAM koruması yapar.
+//
+//  Stash stratejisi: skipDefaultCheckout(true) → her stage'de auto-fetch
+//    yok. Checkout stage'i workspace'i stash eder, diğer stage'ler unstash.
 //
 //  Etiketleme stratejisi (çift tag, her servis için):
 //    - :v2.1-${BUILD_NUMBER}  → immutable, izlenebilir
 //    - :v2.1                  → moving pointer, compose tarafı bunu pull eder
 //
-//  Multi-agent pattern: her stage uygun image'da çalışır.
-//    - Quality stages (Install/Lint/Audit):  node:20-alpine
-//    - SonarCloud:                           sonarsource/sonar-scanner-cli:latest
+//  Multi-agent pattern:
+//    - Quality stages (Install/Lint/Audit):  node:20-alpine (paralel)
+//    - SonarCloud:                           sonarsource/sonar-scanner-cli
 //    - Build / Push / Deploy:                built-in (host docker daemon)
-//
-//  Deploy: docker compose -f docker-compose.prod.yml up -d
-//          → 5 servisi dependency order'da recreate eder
-//          → .env Jenkins secret file 'taskly-env-prod'tan gelir
 // ============================================================
 
 pipeline {
-    // Top-level agent yok; her stage kendi container'ında.
+    // Top-level agent yok; her stage kendi container'ında veya paralel branch'inde.
     agent none
 
     // Pipeline genelinde kullanılacak değişkenler.
@@ -44,99 +48,110 @@ pipeline {
         timestamps()
         // Aynı job'un iki build'inin paralel çalışmasını engeller.
         disableConcurrentBuilds()
-        // 30 dakikada bitmezse build'i sonlandır (5 servis × build/push/deploy).
+        // 30 dakikada bitmezse build'i sonlandır.
         timeout(time: 30, unit: 'MINUTES')
+        // Her stage'de implicit checkout scm ÇALIŞMASIN — Checkout stage'i
+        // bir kez yapar ve stash eder; diğer stage'ler unstash ile alır.
+        skipDefaultCheckout(true)
     }
 
     stages {
 
         // ------------------------------------------------------
         // 1) CHECKOUT — built-in
-        // Git repoyu Jenkins workspace'ine indirir.
+        // Git repoyu Jenkins workspace'ine indirir, sonra tüm dosyaları
+        // 'workspace' adlı stash'e koyar. Diğer stage'ler unstash ile alır.
         // ------------------------------------------------------
         stage('Checkout') {
             agent { label 'built-in' }
             steps {
                 echo "[BAŞLA] Kaynak kod checkout ediliyor (branch=${env.BRANCH_NAME ?: 'n/a'})"
                 checkout scm
-                echo "[BİTİŞ] Checkout tamamlandı"
+                stash includes: '**', name: 'workspace'
+                echo "[BİTİŞ] Checkout + workspace stash tamamlandı"
             }
         }
 
         // ------------------------------------------------------
-        // 2) INSTALL DEPENDENCIES — node:20-alpine (5 servis)
-        // Her servis için npm ci → package-lock.json'dan deterministik
-        // kurulum. Tek container içinde 5 dir+npm ci sıralı koşar.
-        // Frontend için devDependencies dahil (Vite, Tailwind vs. quality
-        // gate'ler için lazım); diğer node servisleri için de tüm deps.
+        // 2) INSTALL DEPENDENCIES — paralel (5 servis)
+        // Her servis kendi node'unda + node:20-alpine container'ında
+        // npm ci paralel olarak çalışır. Eski sıralı for-loop yerine
+        // collectEntries ile her servis paralel branch.
         // ------------------------------------------------------
         stage('Install Dependencies') {
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    reuseNode true
-                }
-            }
+            agent none
             steps {
                 script {
-                    NODE_SERVICES.split(',').each { svc ->
-                        echo "[BAŞLA] ${svc} bağımlılıkları yükleniyor (npm ci)"
-                        dir(svc) {
-                            sh 'npm ci'
-                        }
-                        echo "[BİTİŞ] ${svc} bağımlılıkları yüklendi"
+                    parallel NODE_SERVICES.split(',').collectEntries { svc ->
+                        ["${svc}": {
+                            node('built-in') {
+                                unstash 'workspace'
+                                docker.image('node:20-alpine').inside {
+                                    dir(svc) {
+                                        echo "[BAŞLA] ${svc} npm ci"
+                                        sh 'npm ci'
+                                        echo "[BİTİŞ] ${svc}"
+                                    }
+                                }
+                            }
+                        }]
                     }
                 }
             }
         }
 
         // ------------------------------------------------------
-        // 3) LINT & COMPILE CHECK — node:20-alpine (5 servis)
-        // Lint script'i yoksa atlar (|| echo).
-        // Node servisler için node --check ile syntax doğrulaması.
-        // Frontend için lint'i package.json'da tanımlanırsa koşar,
-        // yoksa atlar.
+        // 3) LINT & COMPILE CHECK — paralel (5 servis)
+        // Stash mantığında her parallel branch fresh workspace alır
+        // (node_modules YOK), bu yüzden lint öncesi npm ci tekrar çalışır.
+        // 5 servis paralel olduğu için extra npm ci wall-clock'a etkisiz.
         // ------------------------------------------------------
         stage('Lint & Compile Check') {
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    reuseNode true
-                }
-            }
+            agent none
             steps {
                 script {
-                    NODE_SERVICES.split(',').each { svc ->
-                        echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
-                        dir(svc) {
-                            sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
-                        }
-                        echo "[BİTİŞ] ${svc} lint/syntax OK"
+                    parallel NODE_SERVICES.split(',').collectEntries { svc ->
+                        ["${svc}": {
+                            node('built-in') {
+                                unstash 'workspace'
+                                docker.image('node:20-alpine').inside {
+                                    dir(svc) {
+                                        echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
+                                        sh 'npm ci'
+                                        sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
+                                        echo "[BİTİŞ] ${svc} lint/syntax OK"
+                                    }
+                                }
+                            }
+                        }]
                     }
                 }
             }
         }
 
         // ------------------------------------------------------
-        // 4) DEPENDENCY SCAN — node:20-alpine (5 servis)
-        // npm audit → bilinen CVE'li paket var mı bakar.
-        // --audit-level=high: sadece 'high' ve 'critical' varsa fail.
+        // 4) DEPENDENCY SCAN — paralel (5 servis)
+        // npm audit --audit-level=high → high+ CVE varsa fail.
+        // Lint stage gibi, fresh workspace nedeniyle npm ci tekrar.
         // ------------------------------------------------------
         stage('Dependency Scan') {
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    reuseNode true
-                }
-            }
+            agent none
             steps {
                 script {
-                    NODE_SERVICES.split(',').each { svc ->
-                        echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
-                        dir(svc) {
-                            sh 'npm audit --audit-level=high'
-                        }
-                        echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                    parallel NODE_SERVICES.split(',').collectEntries { svc ->
+                        ["${svc}": {
+                            node('built-in') {
+                                unstash 'workspace'
+                                docker.image('node:20-alpine').inside {
+                                    dir(svc) {
+                                        echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
+                                        sh 'npm ci'
+                                        sh 'npm audit --audit-level=high'
+                                        echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                                    }
+                                }
+                            }
+                        }]
                     }
                 }
             }
@@ -157,6 +172,7 @@ pipeline {
                 }
             }
             steps {
+                unstash 'workspace'
                 echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
                 withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
@@ -173,65 +189,70 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 6) DOCKER BUILD (sadece master) — built-in (5 servis)
-        // Her servis için iki tag ile build:
-        //   - immutable:  v2.1-<build_number>
-        //   - moving:     v2.1   (compose bunu pull eder)
-        // Built-in agent: Jenkins container'ında docker CLI var,
-        // host docker.sock üzerinden host daemon'a bağlanır.
+        // 6) DOCKER BUILD (sadece master) — paralel (6 servis)
+        // SERVICES = NODE_SERVICES + nginx. Her servis kendi node'unda
+        // build edilir, executor sayısı doğal sınır.
         // ------------------------------------------------------
         stage('Docker Build') {
-            agent { label 'built-in' }
+            agent none
             when { branch 'master' }
             steps {
                 script {
-                    SERVICES.split(',').each { svc ->
-                        def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
-                        echo "[BAŞLA] ${svc} docker image build — ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
-                        sh """
-                            docker build \
-                              -t ${imageName}:${IMMUTABLE_TAG} \
-                              -t ${imageName}:${VERSION} \
-                              ./${svc}/
-                        """
-                        echo "[BİTİŞ] ${svc} image build edildi"
+                    parallel SERVICES.split(',').collectEntries { svc ->
+                        ["${svc}": {
+                            node('built-in') {
+                                unstash 'workspace'
+                                def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
+                                echo "[BAŞLA] ${svc} docker build — ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
+                                dir(svc) {
+                                    sh """
+                                        docker build \
+                                          -t ${imageName}:${IMMUTABLE_TAG} \
+                                          -t ${imageName}:${VERSION} \
+                                          .
+                                    """
+                                }
+                                echo "[BİTİŞ] ${svc} image build edildi"
+                            }
+                        }]
                     }
                 }
             }
         }
 
         // ------------------------------------------------------
-        // 7) PUSH TO GHCR (sadece master) — built-in (5 servis)
-        // GitHub Container Registry'e login → her servisi iki tag ile push.
-        // 'github-ghcr' credential: username = GitHub kullanıcı adı,
-        //                           password = PAT (write:packages yetkili).
-        // Login bir kez, push 5 servis × 2 tag.
+        // 7) PUSH TO GHCR (sadece master) — paralel (6 servis)
+        // ÖNEMLİ: docker login parallel DIŞINDA tek seferlik.
+        // Login docker daemon'a credential cache eder; sonra tüm
+        // parallel push branches aynı login'i kullanır.
         // ------------------------------------------------------
         stage('Push to GHCR') {
-            agent { label 'built-in' }
+            agent none
             when { branch 'master' }
             steps {
-                echo "[BAŞLA] GHCR login ve image push"
-                withCredentials([usernamePassword(
-                    credentialsId: 'github-ghcr',
-                    usernameVariable: 'GHCR_USER',
-                    passwordVariable: 'GHCR_TOKEN'
-                )]) {
-                    sh '''
-                        echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-                    '''
-                }
                 script {
-                    SERVICES.split(',').each { svc ->
-                        def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
-                        echo "[PUSH] ${imageName}:${IMMUTABLE_TAG} ve :${VERSION}"
-                        sh """
-                            docker push ${imageName}:${IMMUTABLE_TAG}
-                            docker push ${imageName}:${VERSION}
-                        """
+                    // Önce tek seferlik login
+                    node('built-in') {
+                        withCredentials([usernamePassword(
+                            credentialsId: 'github-ghcr',
+                            usernameVariable: 'GHCR_USER',
+                            passwordVariable: 'GHCR_TOKEN'
+                        )]) {
+                            sh 'echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin'
+                        }
+                    }
+                    // Sonra paralel push
+                    parallel SERVICES.split(',').collectEntries { svc ->
+                        ["${svc}": {
+                            node('built-in') {
+                                def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
+                                echo "[PUSH] ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
+                                sh "docker push ${imageName}:${IMMUTABLE_TAG}"
+                                sh "docker push ${imageName}:${VERSION}"
+                            }
+                        }]
                     }
                 }
-                echo "[BİTİŞ] ${SERVICES.split(',').size()} servis × 2 tag GHCR'a pushlandı"
             }
         }
 
@@ -239,15 +260,14 @@ pipeline {
         // 8) DEPLOY (sadece master) — built-in (tek compose komutu)
         // docker compose ile tüm servisleri pull edip yeniden başlatır.
         // .env dosyası Jenkins 'taskly-env-prod' Secret file'dan gelir.
-        // db ve kafka image değişmediği için recreate olmaz (volume korunur);
-        // 5 uygulama servisi yeni :v2.1 image ile recreate olur.
-        // nginx config değişmemişse o da etkilenmez.
+        // Compose paralelleştirilmez — tek seferde tüm servisi yönetir.
         // ------------------------------------------------------
         stage('Deploy') {
             agent { label 'built-in' }
             when { branch 'master' }
             steps {
-                echo "[BAŞLA] Production deploy (5 servis, docker compose up -d)"
+                unstash 'workspace'
+                echo "[BAŞLA] Production deploy (docker compose up -d)"
                 withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
                     sh '''
                         set -e
