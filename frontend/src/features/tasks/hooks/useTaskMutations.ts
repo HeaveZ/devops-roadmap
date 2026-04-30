@@ -3,7 +3,30 @@ import { tasksApi } from '../api/tasksApi';
 import { tasksQueryKey } from './useTasks';
 import type { Subtask, Task, TaskComment } from '../types';
 
-type PatchPayload = { id: Task['id']; patch: Partial<Pick<Task, 'completed' | 'priority'>> };
+import type { UpdateTaskPatch } from '../api/tasksApi';
+
+type PatchPayload = { id: Task['id']; patch: UpdateTaskPatch };
+
+function toggleSubtaskInTasks(tasks: Task[], subtaskId: Subtask['id'], completed: boolean): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    subtasks: (t.subtasks ?? []).map((s) => (s.id === subtaskId ? { ...s, completed } : s)),
+  }));
+}
+
+function removeSubtaskFromTasks(tasks: Task[], subtaskId: Subtask['id']): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    subtasks: (t.subtasks ?? []).filter((s) => s.id !== subtaskId),
+  }));
+}
+
+function removeCommentFromTasks(tasks: Task[], commentId: TaskComment['id']): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    comments: (t.comments ?? []).filter((c) => c.id !== commentId),
+  }));
+}
 
 function toggleSubtaskInTasks(tasks: Task[], subtaskId: Subtask['id'], completed: boolean): Task[] {
   return tasks.map((t) => ({

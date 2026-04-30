@@ -4,12 +4,19 @@ import { Button } from 'shared/ui/Button';
 import { useToast } from 'shared/ui/Toast';
 import { useTasks } from '../hooks/useTasks';
 import { useCreateTask } from '../hooks/useCreateTask';
+import { useSprints } from '../hooks/useSprints';
 import { getSection } from '../utils/grouping';
 
 export function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('');
   const [section, setSection] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('none');
+  const [assignee, setAssignee] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [sprintId, setSprintId] = useState('');
   const { data: tasks = [] } = useTasks();
+  const { data: sprints = [] } = useSprints();
   const createTask = useCreateTask();
   const toast = useToast();
 
@@ -21,7 +28,15 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const handleSubmit = () => {
     if (!title.trim()) return;
     createTask.mutate(
-      { title: title.trim(), section: section.trim() || 'Genel' },
+      {
+        title: title.trim(),
+        section: section.trim() || 'Genel',
+        description: description.trim() || undefined,
+        priority: priority !== 'none' ? priority : undefined,
+        assignee_email: assignee.trim() || undefined,
+        due_date: dueDate || undefined,
+        sprint_id: sprintId ? Number(sprintId) : undefined,
+      },
       {
         onSuccess: () => {
           toast.success('Gorev olusturuldu');
@@ -44,6 +59,13 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
           className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50"
           autoFocus
         />
+        <textarea
+          placeholder="Aciklama (istege bagli)..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50 resize-y"
+        />
         <div className="flex gap-3">
           <select
             value={section}
@@ -65,6 +87,46 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
             className={cn(
               'flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50',
             )}
+          />
+        </div>
+        <div className="flex gap-3">
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
+          >
+            <option value="none">Oncelik: Yok</option>
+            <option value="dusuk">Dusuk</option>
+            <option value="orta">Orta</option>
+            <option value="yuksek">Yuksek</option>
+            <option value="kritik">Kritik</option>
+          </select>
+          <select
+            value={sprintId}
+            onChange={(e) => setSprintId(e.target.value)}
+            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
+          >
+            <option value="">Sprint secilmedi</option>
+            {sprints.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-3">
+          <input
+            type="email"
+            placeholder="Atanan kisi (email)..."
+            value={assignee}
+            onChange={(e) => setAssignee(e.target.value)}
+            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50"
+          />
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
           />
         </div>
         <div className="flex gap-2 justify-end">

@@ -111,6 +111,44 @@ async function initDB() {
       ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'none'
     `);
 
+    // --- Jira-like yeni kolonlar ---
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description TEXT`);
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'todo'`);
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignee_email VARCHAR(100)`);
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date DATE`);
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sprint_id INTEGER`);
+
+    // Labels tablosu
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS labels (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(50) NOT NULL UNIQUE,
+        color VARCHAR(7) DEFAULT '#6366f1',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Task-Label junction tablosu
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS task_labels (
+        task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+        label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE,
+        PRIMARY KEY (task_id, label_id)
+      )
+    `);
+
+    // Sprints tablosu
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sprints (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        start_date DATE,
+        end_date DATE,
+        status VARCHAR(20) DEFAULT 'planning',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS files (
         id SERIAL PRIMARY KEY,
@@ -202,18 +240,46 @@ async function authMiddleware(req, res, next) {
 
 // --- API ROUTES ---
 
-// Tum gorevleri getir (misafir erisime acik)
+// Tum gorevleri getir (misafir erisime acik, filtreleme destekli)
 app.get("/api/tasks", async (req, res) => {
   try {
-    const { rows: tasks } = await pool.query(
-      "SELECT * FROM tasks ORDER BY section, id"
+    const { status, assignee, sprint_id, label, search } = req.query;
+
+    let taskQuery = "SELECT * FROM tasks WHERE 1=1";
+    const params = [];
+    let idx = 1;
+
+    if (status) {
+      taskQuery += ` AND status = $${idx++}`;
+      params.push(status);
+    }
+    if (assignee) {
+      taskQuery += ` AND assignee_email = $${idx++}`;
+      params.push(assignee);
+    }
+    if (sprint_id) {
+      taskQuery += ` AND sprint_id = $${idx++}`;
+      params.push(sprint_id);
+    }
+    if (search) {
+      taskQuery += ` AND (title ILIKE $${idx} OR description ILIKE $${idx})`;
+      params.push(`%${search}%`);
+      idx++;
+    }
+    if (label) {
+      taskQuery += ` AND id IN (SELECT task_id FROM task_labels tl JOIN labels l ON tl.label_id = l.id WHERE l.name = $${idx++})`;
+      params.push(label);
+    }
+
+    taskQuery += " ORDER BY section, id";
+
+    const { rows: tasks } = await pool.query(taskQuery, params);
+    const { rows: subtasks } = await pool.query("SELECT * FROM subtasks ORDER BY created_at");
+    const { rows: comments } = await pool.query("SELECT * FROM comments ORDER BY created_at");
+    const { rows: taskLabels } = await pool.query(
+      "SELECT tl.task_id, l.id, l.name, l.color FROM task_labels tl JOIN labels l ON tl.label_id = l.id"
     );
-    const { rows: subtasks } = await pool.query(
-      "SELECT * FROM subtasks ORDER BY created_at"
-    );
-    const { rows: comments } = await pool.query(
-      "SELECT * FROM comments ORDER BY created_at"
-    );
+
     const subtaskMap = {};
     subtasks.forEach(st => {
       if (!subtaskMap[st.parent_id]) subtaskMap[st.parent_id] = [];
@@ -224,12 +290,39 @@ app.get("/api/tasks", async (req, res) => {
       if (!commentMap[c.task_id]) commentMap[c.task_id] = [];
       commentMap[c.task_id].push(c);
     });
+    const labelMap = {};
+    taskLabels.forEach(tl => {
+      if (!labelMap[tl.task_id]) labelMap[tl.task_id] = [];
+      labelMap[tl.task_id].push({ id: tl.id, name: tl.name, color: tl.color });
+    });
+
     const result = tasks.map(t => ({
       ...t,
       subtasks: subtaskMap[t.id] || [],
       comments: commentMap[t.id] || [],
+      labels: labelMap[t.id] || [],
     }));
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Tek gorev detayi
+app.get("/api/tasks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows: tasks } = await pool.query("SELECT * FROM tasks WHERE id = $1", [id]);
+    if (tasks.length === 0) {
+      return res.status(404).json({ error: "Gorev bulunamadi" });
+    }
+    const task = tasks[0];
+    const { rows: subtasks } = await pool.query("SELECT * FROM subtasks WHERE parent_id = $1 ORDER BY created_at", [id]);
+    const { rows: comments } = await pool.query("SELECT * FROM comments WHERE task_id = $1 ORDER BY created_at", [id]);
+    const { rows: labels } = await pool.query(
+      "SELECT l.id, l.name, l.color FROM task_labels tl JOIN labels l ON tl.label_id = l.id WHERE tl.task_id = $1", [id]
+    );
+    res.json({ ...task, subtasks, comments, labels });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -252,7 +345,7 @@ app.post("/api/track", async (req, res) => {
 // Yeni gorev olustur
 app.post("/api/tasks", authMiddleware, async (req, res) => {
   try {
-    const { title, section } = req.body;
+    const { title, section, description, priority, assignee_email, due_date, sprint_id } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ error: "Baslik gerekli" });
     }
@@ -260,24 +353,34 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Section gerekli" });
     }
     const { rows } = await pool.query(
-      "INSERT INTO tasks (title, section) VALUES ($1, $2) RETURNING *",
-      [title.trim(), section.trim()]
+      `INSERT INTO tasks (title, section, description, priority, assignee_email, due_date, sprint_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'todo') RETURNING *`,
+      [
+        title.trim(),
+        section.trim(),
+        description || null,
+        priority || 'none',
+        assignee_email || null,
+        due_date || null,
+        sprint_id || null,
+      ]
     );
     auditLog("TASK_CREATED", req.user, "task", rows[0].id, title.trim());
-    res.status(201).json({ ...rows[0], subtasks: [] });
+    res.status(201).json({ ...rows[0], subtasks: [], comments: [], labels: [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Gorev durumunu guncelle
+// Gorev guncelle (tum alanlar)
 app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { completed, priority } = req.body;
+    const { completed, priority, description, status, assignee_email, due_date, sprint_id } = req.body;
     const updates = [];
     const values = [];
     let idx = 1;
+
     if (completed !== undefined) {
       updates.push(`completed = $${idx++}`);
       values.push(completed);
@@ -290,6 +393,39 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
       updates.push(`priority = $${idx++}`);
       values.push(priority);
     }
+    if (description !== undefined) {
+      updates.push(`description = $${idx++}`);
+      values.push(description);
+    }
+    if (status !== undefined) {
+      const validStatuses = ['todo', 'in_progress', 'in_review', 'done'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Gecersiz durum degeri" });
+      }
+      updates.push(`status = $${idx++}`);
+      values.push(status);
+      // Status done olunca completed=true, degilse false
+      if (status === 'done') {
+        updates.push(`completed = $${idx++}`);
+        values.push(true);
+      } else if (completed === undefined) {
+        updates.push(`completed = $${idx++}`);
+        values.push(false);
+      }
+    }
+    if (assignee_email !== undefined) {
+      updates.push(`assignee_email = $${idx++}`);
+      values.push(assignee_email || null);
+    }
+    if (due_date !== undefined) {
+      updates.push(`due_date = $${idx++}`);
+      values.push(due_date || null);
+    }
+    if (sprint_id !== undefined) {
+      updates.push(`sprint_id = $${idx++}`);
+      values.push(sprint_id || null);
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: "Guncellenecek alan belirtilmedi" });
     }
@@ -301,7 +437,7 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Gorev bulunamadi" });
     }
-    const action = completed !== undefined ? (completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED") : "TASK_PRIORITY_CHANGED";
+    const action = status ? "TASK_STATUS_CHANGED" : completed !== undefined ? (completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED") : "TASK_UPDATED";
     auditLog(action, req.user, "task", id, rows[0].title);
     res.json(rows[0]);
   } catch (err) {
@@ -410,6 +546,185 @@ app.delete("/api/comments/:id", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// --- LABELS CRUD ---
+
+app.get("/api/labels", async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM labels ORDER BY name");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/labels", authMiddleware, async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Etiket adi gerekli" });
+    }
+    const { rows } = await pool.query(
+      "INSERT INTO labels (name, color) VALUES ($1, $2) RETURNING *",
+      [name.trim(), color || '#6366f1']
+    );
+    auditLog("LABEL_CREATED", req.user, "label", rows[0].id, name.trim());
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: "Bu etiket zaten mevcut" });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/labels/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query("DELETE FROM labels WHERE id = $1 RETURNING *", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Etiket bulunamadi" });
+    }
+    auditLog("LABEL_DELETED", req.user, "label", id, rows[0].name);
+    res.json({ message: "Silindi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- TASK-LABEL YONETIMI ---
+
+app.post("/api/tasks/:id/labels", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { labelId } = req.body;
+    if (!labelId) return res.status(400).json({ error: "labelId gerekli" });
+
+    const task = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
+    if (task.rows.length === 0) return res.status(404).json({ error: "Gorev bulunamadi" });
+
+    const label = await pool.query("SELECT id, name FROM labels WHERE id = $1", [labelId]);
+    if (label.rows.length === 0) return res.status(404).json({ error: "Etiket bulunamadi" });
+
+    await pool.query(
+      "INSERT INTO task_labels (task_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [id, labelId]
+    );
+    auditLog("TASK_LABEL_ADDED", req.user, "task_label", id, label.rows[0].name);
+    res.status(201).json({ message: "Etiket eklendi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/tasks/:id/labels/:labelId", authMiddleware, async (req, res) => {
+  try {
+    const { id, labelId } = req.params;
+    const { rowCount } = await pool.query(
+      "DELETE FROM task_labels WHERE task_id = $1 AND label_id = $2",
+      [id, labelId]
+    );
+    if (rowCount === 0) {
+      return res.status(404).json({ error: "Etiket iliskisi bulunamadi" });
+    }
+    auditLog("TASK_LABEL_REMOVED", req.user, "task_label", id, `label:${labelId}`);
+    res.json({ message: "Etiket kaldirildi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SPRINTS CRUD ---
+
+app.get("/api/sprints", async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM sprints ORDER BY created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/sprints", authMiddleware, async (req, res) => {
+  try {
+    const { name, start_date, end_date } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Sprint adi gerekli" });
+    }
+    const { rows } = await pool.query(
+      "INSERT INTO sprints (name, start_date, end_date) VALUES ($1, $2, $3) RETURNING *",
+      [name.trim(), start_date || null, end_date || null]
+    );
+    auditLog("SPRINT_CREATED", req.user, "sprint", rows[0].id, name.trim());
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/sprints/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, start_date, end_date, status } = req.body;
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${idx++}`);
+      values.push(name.trim());
+    }
+    if (start_date !== undefined) {
+      updates.push(`start_date = $${idx++}`);
+      values.push(start_date || null);
+    }
+    if (end_date !== undefined) {
+      updates.push(`end_date = $${idx++}`);
+      values.push(end_date || null);
+    }
+    if (status !== undefined) {
+      const validStatuses = ['planning', 'active', 'completed'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Gecersiz sprint durumu" });
+      }
+      updates.push(`status = $${idx++}`);
+      values.push(status);
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Guncellenecek alan belirtilmedi" });
+    }
+    values.push(id);
+    const { rows } = await pool.query(
+      `UPDATE sprints SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Sprint bulunamadi" });
+    }
+    auditLog("SPRINT_UPDATED", req.user, "sprint", id, rows[0].name);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/sprints/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Sprint silinince task'larin sprint_id'sini null yap
+    await pool.query("UPDATE tasks SET sprint_id = NULL WHERE sprint_id = $1", [id]);
+    const { rows } = await pool.query("DELETE FROM sprints WHERE id = $1 RETURNING *", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Sprint bulunamadi" });
+    }
+    auditLog("SPRINT_DELETED", req.user, "sprint", id, rows[0].name);
+    res.json({ message: "Silindi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DOSYA ISLEMLERI ---
 
 // Dosya yukle (S3 + DB)
 app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {

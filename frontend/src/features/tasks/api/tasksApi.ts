@@ -2,15 +2,30 @@ import { apiClient } from 'shared/api/client';
 import { endpoints } from 'shared/api/endpoints';
 import type { Subtask, Task, TaskComment } from '../types';
 
+export interface CreateTaskPayload {
+  title: string;
+  section: string;
+  description?: string;
+  priority?: string;
+  assignee_email?: string;
+  due_date?: string;
+  sprint_id?: number;
+}
+
+export type UpdateTaskPatch = Partial<
+  Pick<Task, 'completed' | 'priority' | 'description' | 'status' | 'assignee_email' | 'due_date' | 'sprint_id'>
+>;
+
 export const tasksApi = {
   list: () => apiClient.get<Task[]>(endpoints.tasks.list).then((r) => r.data),
 
-  create: (title: string, section: string) =>
-    apiClient
-      .post<Task>(endpoints.tasks.list, { title, section })
-      .then((r) => r.data),
+  detail: (id: number | string) =>
+    apiClient.get<Task>(endpoints.tasks.detail(id)).then((r) => r.data),
 
-  update: (id: number | string, patch: Partial<Pick<Task, 'completed' | 'priority'>>) =>
+  create: (payload: CreateTaskPayload) =>
+    apiClient.post<Task>(endpoints.tasks.list, payload).then((r) => r.data),
+
+  update: (id: number | string, patch: UpdateTaskPatch) =>
     apiClient.patch<Task>(endpoints.tasks.update(id), patch).then((r) => r.data),
 
   addSubtask: (taskId: number | string, title: string) =>
@@ -33,4 +48,10 @@ export const tasksApi = {
 
   deleteComment: (commentId: number | string) =>
     apiClient.delete(endpoints.tasks.comment(commentId)).then(() => undefined),
+
+  addLabel: (taskId: number | string, labelId: number) =>
+    apiClient.post(endpoints.tasks.addLabel(taskId), { labelId }).then((r) => r.data),
+
+  removeLabel: (taskId: number | string, labelId: number | string) =>
+    apiClient.delete(endpoints.tasks.removeLabel(taskId, labelId)).then(() => undefined),
 };
