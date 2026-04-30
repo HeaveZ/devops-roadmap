@@ -4,7 +4,8 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
 
 # ---------- Stage 2: runtime ----------
 FROM node:20-alpine AS runtime

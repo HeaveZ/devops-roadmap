@@ -46,6 +46,9 @@ pipeline {
         disableConcurrentBuilds()
         // 30 dakikada bitmezse build'i sonlandır (5 servis × build/push/deploy).
         timeout(time: 30, unit: 'MINUTES')
+        // Her stage'in implicit `checkout scm` adımını kapat; tek checkout
+        // + stash/unstash ile workspace dağıtılır (git fetch tekrarı yok).
+        skipDefaultCheckout()
     }
 
     stages {
@@ -59,7 +62,10 @@ pipeline {
             steps {
                 echo "[BAŞLA] Kaynak kod checkout ediliyor (branch=${env.BRANCH_NAME ?: 'n/a'})"
                 checkout scm
-                echo "[BİTİŞ] Checkout tamamlandı"
+                // Workspace'i stash'le; sonraki stage'ler unstash ile alır.
+                // Tek git fetch — 8x git fetch yerine.
+                stash includes: '**', name: 'workspace'
+                echo "[BİTİŞ] Checkout tamamlandı (workspace stashed)"
             }
         }
 
@@ -78,6 +84,7 @@ pipeline {
                 }
             }
             steps {
+                unstash 'workspace'
                 script {
                     NODE_SERVICES.split(',').each { svc ->
                         echo "[BAŞLA] ${svc} bağımlılıkları yükleniyor (npm ci)"
@@ -105,6 +112,7 @@ pipeline {
                 }
             }
             steps {
+                unstash 'workspace'
                 script {
                     NODE_SERVICES.split(',').each { svc ->
                         echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
@@ -130,6 +138,7 @@ pipeline {
                 }
             }
             steps {
+                unstash 'workspace'
                 script {
                     NODE_SERVICES.split(',').each { svc ->
                         echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
@@ -156,7 +165,10 @@ pipeline {
                     args '-u root --entrypoint=""'
                 }
             }
+            // PR'lar ve feature branch'lerde Sonar atlanır; sadece master'da koşar.
+            when { branch 'master' }
             steps {
+                unstash 'workspace'
                 echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
                 withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
@@ -184,6 +196,7 @@ pipeline {
             agent { label 'built-in' }
             when { branch 'master' }
             steps {
+                unstash 'workspace'
                 script {
                     SERVICES.split(',').each { svc ->
                         def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
@@ -211,6 +224,7 @@ pipeline {
             agent { label 'built-in' }
             when { branch 'master' }
             steps {
+                unstash 'workspace'
                 echo "[BAŞLA] GHCR login ve image push"
                 withCredentials([usernamePassword(
                     credentialsId: 'github-ghcr',
@@ -247,6 +261,7 @@ pipeline {
             agent { label 'built-in' }
             when { branch 'master' }
             steps {
+                unstash 'workspace'
                 echo "[BAŞLA] Production deploy (5 servis, docker compose up -d)"
                 withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
                     sh '''
