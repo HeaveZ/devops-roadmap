@@ -5,6 +5,27 @@ import type { Subtask, Task, TaskComment } from '../types';
 
 type PatchPayload = { id: Task['id']; patch: Partial<Pick<Task, 'completed' | 'priority'>> };
 
+function toggleSubtaskInTasks(tasks: Task[], subtaskId: Subtask['id'], completed: boolean): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    subtasks: (t.subtasks ?? []).map((s) => (s.id === subtaskId ? { ...s, completed } : s)),
+  }));
+}
+
+function removeSubtaskFromTasks(tasks: Task[], subtaskId: Subtask['id']): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    subtasks: (t.subtasks ?? []).filter((s) => s.id !== subtaskId),
+  }));
+}
+
+function removeCommentFromTasks(tasks: Task[], commentId: TaskComment['id']): Task[] {
+  return tasks.map((t) => ({
+    ...t,
+    comments: (t.comments ?? []).filter((c) => c.id !== commentId),
+  }));
+}
+
 export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
@@ -48,12 +69,7 @@ export function useToggleSubtask() {
       await qc.cancelQueries({ queryKey: tasksQueryKey });
       const prev = qc.getQueryData<Task[]>(tasksQueryKey);
       qc.setQueryData<Task[]>(tasksQueryKey, (current) =>
-        (current ?? []).map((t) => ({
-          ...t,
-          subtasks: (t.subtasks ?? []).map((s) =>
-            s.id === subtask.id ? { ...s, completed } : s,
-          ),
-        })),
+        toggleSubtaskInTasks(current ?? [], subtask.id, completed),
       );
       return { prev };
     },
@@ -73,10 +89,7 @@ export function useDeleteSubtask() {
       await qc.cancelQueries({ queryKey: tasksQueryKey });
       const prev = qc.getQueryData<Task[]>(tasksQueryKey);
       qc.setQueryData<Task[]>(tasksQueryKey, (current) =>
-        (current ?? []).map((t) => ({
-          ...t,
-          subtasks: (t.subtasks ?? []).filter((s) => s.id !== subtaskId),
-        })),
+        removeSubtaskFromTasks(current ?? [], subtaskId),
       );
       return { prev };
     },
@@ -111,10 +124,7 @@ export function useDeleteComment() {
       await qc.cancelQueries({ queryKey: tasksQueryKey });
       const prev = qc.getQueryData<Task[]>(tasksQueryKey);
       qc.setQueryData<Task[]>(tasksQueryKey, (current) =>
-        (current ?? []).map((t) => ({
-          ...t,
-          comments: (t.comments ?? []).filter((c) => c.id !== commentId),
-        })),
+        removeCommentFromTasks(current ?? [], commentId),
       );
       return { prev };
     },

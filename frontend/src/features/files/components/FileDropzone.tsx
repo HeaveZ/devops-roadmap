@@ -42,6 +42,7 @@ export function FileDropzone() {
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
       onClick={() => inputRef.current?.click()}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
       role="button"
       tabIndex={0}
       className={cn(

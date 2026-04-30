@@ -59,6 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
+            tabIndex={0}
             className={cn(
               'px-4 py-3 rounded-lg border text-sm shadow-lg animate-fadeIn cursor-pointer',
               t.kind === 'success' &&
@@ -68,6 +69,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               t.kind === 'info' && 'bg-navy-800 border-border text-ink',
             )}
             onClick={() => dismiss(t.id)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(t.id); } }}
           >
             {t.message}
           </div>

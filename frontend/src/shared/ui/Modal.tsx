@@ -31,6 +31,7 @@ export function Modal({
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-navy-900/90 backdrop-blur-md animate-fadeIn"
       onClick={() => closeOnBackdrop && onClose()}
+      onKeyDown={(e) => { if (e.key === 'Enter' && closeOnBackdrop) onClose(); }}
       role="dialog"
       aria-modal="true"
     >
@@ -40,6 +41,7 @@ export function Modal({
           className,
         )}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>
