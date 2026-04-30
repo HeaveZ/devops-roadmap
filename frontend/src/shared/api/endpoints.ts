@@ -25,4 +25,7 @@ export const endpoints = {
   analytics: {
     track: '/api/track',
   },
+  auditLogs: {
+    list: (limit = 50, offset = 0) => `/api/audit-logs?limit=${limit}&offset=${offset}`,
+  },
 } as const;

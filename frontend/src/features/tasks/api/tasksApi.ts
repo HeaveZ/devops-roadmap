@@ -5,6 +5,11 @@ import type { Subtask, Task, TaskComment } from '../types';
 export const tasksApi = {
   list: () => apiClient.get<Task[]>(endpoints.tasks.list).then((r) => r.data),
 
+  create: (title: string, section: string) =>
+    apiClient
+      .post<Task>(endpoints.tasks.list, { title, section })
+      .then((r) => r.data),
+
   update: (id: number | string, patch: Partial<Pick<Task, 'completed' | 'priority'>>) =>
     apiClient.patch<Task>(endpoints.tasks.update(id), patch).then((r) => r.data),
 

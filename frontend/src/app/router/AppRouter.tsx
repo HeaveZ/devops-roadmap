@@ -1,16 +1,35 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AppLayout } from 'app/layout/AppLayout';
 import { LoginPage } from 'pages/LoginPage';
 import { RegisterPage } from 'pages/RegisterPage';
 import { VerifyCodePage } from 'pages/VerifyCodePage';
 import { TasksPage } from 'pages/TasksPage';
-import { FilesPage } from 'pages/FilesPage';
-import { DashboardPage } from 'pages/DashboardPage';
-import { ProfilePage } from 'pages/ProfilePage';
 import { NotFoundPage } from 'pages/NotFoundPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { GuestRoute } from './GuestRoute';
 import { ROUTES } from './routes';
+import { Spinner } from 'shared/ui/Spinner';
+
+const KanbanPage = lazy(() =>
+  import('pages/KanbanPage').then((m) => ({ default: m.KanbanPage })),
+);
+const FilesPage = lazy(() =>
+  import('pages/FilesPage').then((m) => ({ default: m.FilesPage })),
+);
+const DashboardPage = lazy(() =>
+  import('pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
+const ActivityPage = lazy(() =>
+  import('pages/ActivityPage').then((m) => ({ default: m.ActivityPage })),
+);
+const ProfilePage = lazy(() =>
+  import('pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+);
+
+function Lazy({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<Spinner />}>{children}</Suspense>;
+}
 
 const router = createBrowserRouter([
   {
@@ -19,19 +38,48 @@ const router = createBrowserRouter([
       { path: ROUTES.home, element: <Navigate to={ROUTES.tasks} replace /> },
       { path: ROUTES.tasks, element: <TasksPage /> },
       {
+        path: ROUTES.kanban,
+        element: (
+          <Lazy>
+            <KanbanPage />
+          </Lazy>
+        ),
+      },
+      {
         path: ROUTES.files,
         element: (
           <ProtectedRoute>
-            <FilesPage />
+            <Lazy>
+              <FilesPage />
+            </Lazy>
           </ProtectedRoute>
         ),
       },
-      { path: ROUTES.dashboard, element: <DashboardPage /> },
+      {
+        path: ROUTES.dashboard,
+        element: (
+          <Lazy>
+            <DashboardPage />
+          </Lazy>
+        ),
+      },
+      {
+        path: ROUTES.activity,
+        element: (
+          <ProtectedRoute>
+            <Lazy>
+              <ActivityPage />
+            </Lazy>
+          </ProtectedRoute>
+        ),
+      },
       {
         path: ROUTES.profile,
         element: (
           <ProtectedRoute>
-            <ProfilePage />
+            <Lazy>
+              <ProfilePage />
+            </Lazy>
           </ProtectedRoute>
         ),
       },

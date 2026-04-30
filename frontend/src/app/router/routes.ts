@@ -1,8 +1,10 @@
 export const ROUTES = {
   home: '/',
   tasks: '/tasks',
+  kanban: '/kanban',
   files: '/files',
   dashboard: '/dashboard',
+  activity: '/activity',
   profile: '/profile',
   login: '/login',
   register: '/register',
