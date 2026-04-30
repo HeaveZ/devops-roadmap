@@ -170,28 +170,30 @@ pipeline {
         // sonar.sources tüm 5 servisin kaynak dizinlerini kapsar.
         // ------------------------------------------------------
         stage('SonarCloud Analysis') {
-            agent {
-                docker {
-                    image 'sonarsource/sonar-scanner-cli:latest'
-                    reuseNode true
-                    args '-u root --entrypoint=""'
-                }
-            }
+            agent none
             steps {
-                unstash 'workspace'
-                echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
-                sh 'rm -rf .scannerwork || true'
-                withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=HeaveZ_devops-roadmap \
-                          -Dsonar.organization=heavez \
-                          -Dsonar.host.url=https://sonarcloud.io \
-                          -Dsonar.login=$SONAR_TOKEN \
-                          -Dsonar.sources=audit-logger/src,auth-server/src,task-manager/server.js,email-sender/src,frontend/src
-                    '''
+                script {
+                    node('built-in') {
+                        ws("workspace/${env.JOB_NAME}-sonar-${env.BUILD_NUMBER}") {
+                            unstash 'workspace'
+                            echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
+                            sh 'rm -rf .scannerwork || true'
+                            docker.image('sonarsource/sonar-scanner-cli:latest').inside('-u root --entrypoint=""') {
+                                withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
+                                    sh '''
+                                        sonar-scanner \
+                                          -Dsonar.projectKey=HeaveZ_devops-roadmap \
+                                          -Dsonar.organization=heavez \
+                                          -Dsonar.host.url=https://sonarcloud.io \
+                                          -Dsonar.login=$SONAR_TOKEN \
+                                          -Dsonar.sources=audit-logger/src,auth-server/src,task-manager/server.js,email-sender/src,frontend/src
+                                    '''
+                                }
+                            }
+                            echo "[BİTİŞ] SonarCloud raporu gönderildi"
+                        }
+                    }
                 }
-                echo "[BİTİŞ] SonarCloud raporu gönderildi"
             }
         }
 
