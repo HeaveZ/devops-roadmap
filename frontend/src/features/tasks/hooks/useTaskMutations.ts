@@ -28,27 +28,6 @@ function removeCommentFromTasks(tasks: Task[], commentId: TaskComment['id']): Ta
   }));
 }
 
-function toggleSubtaskInTasks(tasks: Task[], subtaskId: Subtask['id'], completed: boolean): Task[] {
-  return tasks.map((t) => ({
-    ...t,
-    subtasks: (t.subtasks ?? []).map((s) => (s.id === subtaskId ? { ...s, completed } : s)),
-  }));
-}
-
-function removeSubtaskFromTasks(tasks: Task[], subtaskId: Subtask['id']): Task[] {
-  return tasks.map((t) => ({
-    ...t,
-    subtasks: (t.subtasks ?? []).filter((s) => s.id !== subtaskId),
-  }));
-}
-
-function removeCommentFromTasks(tasks: Task[], commentId: TaskComment['id']): Task[] {
-  return tasks.map((t) => ({
-    ...t,
-    comments: (t.comments ?? []).filter((c) => c.id !== commentId),
-  }));
-}
-
 export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
