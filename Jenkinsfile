@@ -85,12 +85,14 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                unstash 'workspace'
-                                docker.image('node:20-alpine').inside {
-                                    dir(svc) {
-                                        echo "[BAŞLA] ${svc} npm ci"
-                                        sh 'npm ci'
-                                        echo "[BİTİŞ] ${svc}"
+                                ws("workspace/${env.JOB_NAME}-install-${svc}-${env.BUILD_NUMBER}") {
+                                    unstash 'workspace'
+                                    docker.image('node:20-alpine').inside {
+                                        dir(svc) {
+                                            echo "[BAŞLA] ${svc} npm ci"
+                                            sh 'npm ci'
+                                            echo "[BİTİŞ] ${svc}"
+                                        }
                                     }
                                 }
                             }
@@ -113,13 +115,15 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                unstash 'workspace'
-                                docker.image('node:20-alpine').inside {
-                                    dir(svc) {
-                                        echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
-                                        sh 'npm ci'
-                                        sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
-                                        echo "[BİTİŞ] ${svc} lint/syntax OK"
+                                ws("workspace/${env.JOB_NAME}-lint-${svc}-${env.BUILD_NUMBER}") {
+                                    unstash 'workspace'
+                                    docker.image('node:20-alpine').inside {
+                                        dir(svc) {
+                                            echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
+                                            sh 'npm ci'
+                                            sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
+                                            echo "[BİTİŞ] ${svc} lint/syntax OK"
+                                        }
                                     }
                                 }
                             }
@@ -141,13 +145,15 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                unstash 'workspace'
-                                docker.image('node:20-alpine').inside {
-                                    dir(svc) {
-                                        echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
-                                        sh 'npm ci'
-                                        sh 'npm audit --audit-level=high'
-                                        echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                                ws("workspace/${env.JOB_NAME}-audit-${svc}-${env.BUILD_NUMBER}") {
+                                    unstash 'workspace'
+                                    docker.image('node:20-alpine').inside {
+                                        dir(svc) {
+                                            echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
+                                            sh 'npm ci'
+                                            sh 'npm audit --audit-level=high'
+                                            echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                                        }
                                     }
                                 }
                             }
@@ -174,6 +180,7 @@ pipeline {
             steps {
                 unstash 'workspace'
                 echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
+                sh 'rm -rf .scannerwork || true'
                 withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
                         sonar-scanner \
@@ -201,18 +208,21 @@ pipeline {
                     parallel SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                unstash 'workspace'
-                                def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
-                                echo "[BAŞLA] ${svc} docker build — ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
-                                dir(svc) {
-                                    sh """
-                                        docker build \
-                                          -t ${imageName}:${IMMUTABLE_TAG} \
-                                          -t ${imageName}:${VERSION} \
-                                          .
-                                    """
+                                ws("workspace/${env.JOB_NAME}-build-${svc}-${env.BUILD_NUMBER}") {
+                                    unstash 'workspace'
+                                    def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
+                                    echo "[BAŞLA] ${svc} docker build — ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
+                                    dir(svc) {
+                                        sh """
+                                            docker build \
+                                              -t ${imageName}:${IMMUTABLE_TAG} \
+                                              -t ${imageName}:${VERSION} \
+                                              .
+                                        """
+                                    }
+                                    sh "docker images | grep ${svc} || true"
+                                    echo "[BİTİŞ] ${svc} image build edildi"
                                 }
-                                echo "[BİTİŞ] ${svc} image build edildi"
                             }
                         }]
                     }
@@ -245,10 +255,12 @@ pipeline {
                     parallel SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
-                                echo "[PUSH] ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
-                                sh "docker push ${imageName}:${IMMUTABLE_TAG}"
-                                sh "docker push ${imageName}:${VERSION}"
+                                ws("workspace/${env.JOB_NAME}-push-${svc}-${env.BUILD_NUMBER}") {
+                                    def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
+                                    echo "[PUSH] ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
+                                    sh "docker push ${imageName}:${IMMUTABLE_TAG}"
+                                    sh "docker push ${imageName}:${VERSION}"
+                                }
                             }
                         }]
                     }
