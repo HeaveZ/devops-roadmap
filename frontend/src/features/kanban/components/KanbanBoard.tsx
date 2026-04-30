@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { cn } from 'shared/lib/cn';
 import { useAuth } from 'features/auth/context/AuthContext';
@@ -9,16 +10,18 @@ import { getPriorityInfo } from 'features/tasks/utils/priority';
 import { useToast } from 'shared/ui/Toast';
 import { Spinner } from 'shared/ui/Spinner';
 import { EmptyState } from 'shared/ui/EmptyState';
-import type { Task } from 'features/tasks/types';
+import type { Task, TaskStatus } from 'features/tasks/types';
 
 interface Column {
-  id: 'todo' | 'done';
+  id: 'todo' | 'in_progress' | 'in_review' | 'done';
   title: string;
   accentClass: string;
 }
 
 const COLUMNS: Column[] = [
   { id: 'todo', title: 'Yapilacak', accentClass: 'border-t-brand' },
+  { id: 'in_progress', title: 'Devam Ediyor', accentClass: 'border-t-accent-orange' },
+  { id: 'in_review', title: 'Incelemede', accentClass: 'border-t-purple-500' },
   { id: 'done', title: 'Tamamlandi', accentClass: 'border-t-status-green' },
 ];
 
@@ -27,6 +30,7 @@ export function KanbanBoard() {
   const { data: tasks = [], isLoading } = useTasks();
   const updateTask = useUpdateTask();
   const toast = useToast();
+  const navigate = useNavigate();
   const [filterSection, setFilterSection] = useState('all');
 
   const allSections = useMemo(
@@ -42,10 +46,17 @@ export function KanbanBoard() {
     [tasks, filterSection],
   );
 
+  const getTaskStatus = (t: Task): TaskStatus => {
+    if (t.status) return t.status;
+    return t.completed ? 'done' : 'todo';
+  };
+
   const columnTasks = useMemo(
     () => ({
-      todo: filtered.filter((t) => !t.completed),
-      done: filtered.filter((t) => t.completed),
+      todo: filtered.filter((t) => getTaskStatus(t) === 'todo'),
+      in_progress: filtered.filter((t) => getTaskStatus(t) === 'in_progress'),
+      in_review: filtered.filter((t) => getTaskStatus(t) === 'in_review'),
+      done: filtered.filter((t) => getTaskStatus(t) === 'done'),
     }),
     [filtered],
   );
@@ -62,14 +73,17 @@ export function KanbanBoard() {
     const task = tasks.find((t) => String(t.id) === taskId);
     if (!task) return;
 
-    const newCompleted = destination.droppableId === 'done';
-    if (task.completed === newCompleted) return;
+    const newStatus = destination.droppableId as TaskStatus;
+    const currentStatus = getTaskStatus(task);
+    if (currentStatus === newStatus) return;
 
     updateTask.mutate(
-      { id: task.id, patch: { completed: newCompleted } },
+      { id: task.id, patch: { status: newStatus } },
       {
-        onSuccess: () =>
-          toast.success(newCompleted ? 'Gorev tamamlandi!' : 'Gorev yeniden acildi'),
+        onSuccess: () => {
+          const statusLabel = COLUMNS.find((c) => c.id === newStatus)?.title ?? newStatus;
+          toast.success(`Gorev durumu: ${statusLabel}`);
+        },
       },
     );
   };
@@ -102,7 +116,7 @@ export function KanbanBoard() {
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {COLUMNS.map((col) => {
             const items = columnTasks[col.id];
             return (
@@ -131,14 +145,12 @@ export function KanbanBoard() {
                       )}
                     >
                       {items.map((task, index) => (
-                        <KanbanCard key={task.id} task={task} index={index} />
+                        <KanbanCard key={task.id} task={task} index={index} onNavigate={() => navigate(`/tasks/${task.id}`)} />
                       ))}
                       {provided.placeholder}
                       {items.length === 0 && (
                         <EmptyState className="border-none bg-transparent py-16">
-                          {col.id === 'todo'
-                            ? 'Tum gorevler tamamlandi!'
-                            : 'Henuz tamamlanan gorev yok'}
+                          Bu kolonda gorev yok
                         </EmptyState>
                       )}
                     </div>
@@ -153,11 +165,12 @@ export function KanbanBoard() {
   );
 }
 
-function KanbanCard({ task, index }: { task: Task; index: number }) {
+function KanbanCard({ task, index, onNavigate }: { task: Task; index: number; onNavigate: () => void }) {
   const pri = getPriorityInfo(task.priority);
   const subtasks = task.subtasks ?? [];
   const subDone = subtasks.filter((s) => s.completed).length;
   const comments = task.comments ?? [];
+  const taskLabels = task.labels ?? [];
 
   return (
     <Draggable draggableId={String(task.id)} index={index}>
@@ -166,11 +179,25 @@ function KanbanCard({ task, index }: { task: Task; index: number }) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
+          onClick={onNavigate}
           className={cn(
-            'bg-navy-900 border border-border rounded-lg p-3.5 cursor-grab active:cursor-grabbing transition-shadow',
+            'bg-navy-900 border border-border rounded-lg p-3.5 cursor-grab active:cursor-grabbing transition-shadow hover:border-brand/30',
             snapshot.isDragging && 'shadow-glow border-brand/40',
           )}
         >
+          {taskLabels.length > 0 && (
+            <div className="flex items-center gap-1 mb-2">
+              {taskLabels.map((label) => (
+                <span
+                  key={label.id}
+                  className="w-2.5 h-2.5 rounded-full inline-block"
+                  style={{ backgroundColor: label.color }}
+                  title={label.name}
+                />
+              ))}
+            </div>
+          )}
+
           <p className="text-sm font-medium text-ink mb-2.5">
             {getTaskTitle(task)}
           </p>
@@ -199,6 +226,20 @@ function KanbanCard({ task, index }: { task: Task; index: number }) {
               </span>
             )}
           </div>
+          {(task.assignee_email || task.due_date) && (
+            <div className="flex items-center gap-2 mt-2 text-[10px] text-muted">
+              {task.assignee_email && (
+                <span className="bg-white/5 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={task.assignee_email}>
+                  {task.assignee_email.split('@')[0]}
+                </span>
+              )}
+              {task.due_date && (
+                <span className="ml-auto bg-white/5 px-1.5 py-0.5 rounded">
+                  {new Date(task.due_date).toLocaleDateString('tr-TR')}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Draggable>

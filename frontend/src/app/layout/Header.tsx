@@ -11,6 +11,8 @@ const navItems = [
   { to: ROUTES.files, label: 'Dosyalar' },
   { to: ROUTES.dashboard, label: 'Dashboard' },
   { to: ROUTES.activity, label: 'Aktivite' },
+  { to: ROUTES.sprints, label: 'Sprintler' },
+  { to: ROUTES.labels, label: 'Etiketler' },
 ] as const;
 
 export function Header() {

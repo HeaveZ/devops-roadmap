@@ -26,6 +26,15 @@ const ActivityPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 );
+const TaskDetailPage = lazy(() =>
+  import('pages/TaskDetailPage').then((m) => ({ default: m.TaskDetailPage })),
+);
+const SprintManagePage = lazy(() =>
+  import('pages/SprintManagePage').then((m) => ({ default: m.SprintManagePage })),
+);
+const LabelManagePage = lazy(() =>
+  import('pages/LabelManagePage').then((m) => ({ default: m.LabelManagePage })),
+);
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<Spinner />}>{children}</Suspense>;
@@ -36,6 +45,16 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: ROUTES.home, element: <Navigate to={ROUTES.tasks} replace /> },
+      {
+        path: ROUTES.taskDetail,
+        element: (
+          <ProtectedRoute>
+            <Lazy>
+              <TaskDetailPage />
+            </Lazy>
+          </ProtectedRoute>
+        ),
+      },
       { path: ROUTES.tasks, element: <TasksPage /> },
       {
         path: ROUTES.kanban,
@@ -69,6 +88,26 @@ const router = createBrowserRouter([
           <ProtectedRoute>
             <Lazy>
               <ActivityPage />
+            </Lazy>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.sprints,
+        element: (
+          <ProtectedRoute>
+            <Lazy>
+              <SprintManagePage />
+            </Lazy>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.labels,
+        element: (
+          <ProtectedRoute>
+            <Lazy>
+              <LabelManagePage />
             </Lazy>
           </ProtectedRoute>
         ),

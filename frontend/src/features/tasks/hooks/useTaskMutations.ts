@@ -3,7 +3,9 @@ import { tasksApi } from '../api/tasksApi';
 import { tasksQueryKey } from './useTasks';
 import type { Subtask, Task, TaskComment } from '../types';
 
-type PatchPayload = { id: Task['id']; patch: Partial<Pick<Task, 'completed' | 'priority'>> };
+import type { UpdateTaskPatch } from '../api/tasksApi';
+
+type PatchPayload = { id: Task['id']; patch: UpdateTaskPatch };
 
 function toggleSubtaskInTasks(tasks: Task[], subtaskId: Subtask['id'], completed: boolean): Task[] {
   return tasks.map((t) => ({
