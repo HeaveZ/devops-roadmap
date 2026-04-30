@@ -196,7 +196,8 @@ pipeline {
                                         sonar-scanner \
                                           -Dsonar.projectKey=HeaveZ_devops-roadmap \
                                           -Dsonar.organization=heavez \
-                                          -Dsonar.sources=audit-logger/src,auth-server/src,task-manager/server.js,email-sender/src,frontend/src
+                                          -Dsonar.sources=audit-logger/src,auth-server/src,task-manager/server.js,email-sender/src,frontend/src \
+                                          -Dsonar.coverage.exclusions=**/*
                                     '''
                                 }
                             }

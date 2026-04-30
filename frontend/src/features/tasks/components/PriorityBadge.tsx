@@ -14,7 +14,9 @@ export function PriorityBadge({ value, onClick, disabled, title }: Props) {
   return (
     <span
       role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
       onClick={clickable ? onClick : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } } : undefined}
       title={title}
       className={cn(
         'inline-flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md border font-medium tracking-wide uppercase select-none',
