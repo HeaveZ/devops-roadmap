@@ -190,14 +190,12 @@ pipeline {
                             unstash 'workspace'
                             echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
                             sh 'rm -rf .scannerwork || true'
-                            docker.image('sonarsource/sonar-scanner-cli:latest').inside('-u root --entrypoint=""') {
-                                withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
+                            withSonarQubeEnv('SonarCloud') {
+                                docker.image('sonarsource/sonar-scanner-cli:latest').inside('-u root --entrypoint=""') {
                                     sh '''
                                         sonar-scanner \
                                           -Dsonar.projectKey=HeaveZ_devops-roadmap \
                                           -Dsonar.organization=heavez \
-                                          -Dsonar.host.url=https://sonarcloud.io \
-                                          -Dsonar.login=$SONAR_TOKEN \
                                           -Dsonar.sources=audit-logger/src,auth-server/src,task-manager/server.js,email-sender/src,frontend/src
                                     '''
                                 }
