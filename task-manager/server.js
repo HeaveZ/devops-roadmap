@@ -16,7 +16,10 @@ const s3 = new S3Client({
 
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { GetObjectCommand } = require("@aws-sdk/client-s3");
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 const { Kafka } = require("kafkajs");
 
@@ -373,9 +376,16 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
 });
 
 // Task patch icin field'lari topla
+const VALID_PRIORITIES = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
+const VALID_STATUSES = ['todo', 'in_progress', 'in_review', 'done'];
+
+function resolveAutoCompleted(status, explicitCompleted) {
+  if (status === 'done') return true;
+  if (explicitCompleted === undefined) return false;
+  return undefined;
+}
+
 function buildTaskPatch(body) {
-  const VALID_PRIORITIES = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
-  const VALID_STATUSES = ['todo', 'in_progress', 'in_review', 'done'];
   const updates = [];
   const values = [];
   let idx = 1;
@@ -391,8 +401,8 @@ function buildTaskPatch(body) {
   if (body.status !== undefined) {
     if (!VALID_STATUSES.includes(body.status)) return { error: "Gecersiz durum degeri" };
     addField('status', body.status);
-    const autoCompleted = body.status === 'done' ? true : (body.completed === undefined ? false : undefined);
-    if (autoCompleted !== undefined) addField('completed', autoCompleted);
+    const auto = resolveAutoCompleted(body.status, body.completed);
+    if (auto !== undefined) addField('completed', auto);
   }
   if (body.assignee_email !== undefined) addField('assignee_email', body.assignee_email || null);
   if (body.due_date !== undefined) addField('due_date', body.due_date || null);

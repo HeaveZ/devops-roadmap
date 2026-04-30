@@ -18,10 +18,19 @@ export interface TaskFiltersApi {
   activeFilterCount: number;
 }
 
+function matchesSearch(t: Task, query: string): boolean {
+  return !query || getTaskTitle(t).toLowerCase().includes(query);
+}
+
+function matchesStatus(t: Task, status: string): boolean {
+  if (status === 'active') return !t.completed;
+  if (status === 'completed') return t.completed;
+  return true;
+}
+
 function matchesFilters(t: Task, state: TaskFilterState, query: string): boolean {
-  if (query && !getTaskTitle(t).toLowerCase().includes(query)) return false;
-  if (state.status === 'active' && t.completed) return false;
-  if (state.status === 'completed' && !t.completed) return false;
+  if (!matchesSearch(t, query)) return false;
+  if (!matchesStatus(t, state.status)) return false;
   if (state.section !== 'all' && getSection(t) !== state.section) return false;
   if (state.priority !== 'all' && (t.priority ?? 'none') !== state.priority) return false;
   if (state.assignee !== 'all' && (t.assignee_email ?? '') !== state.assignee) return false;

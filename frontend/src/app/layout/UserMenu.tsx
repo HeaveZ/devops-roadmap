@@ -19,6 +19,12 @@ function UserMenuTrigger({ open, toggle, email, avatarData }: { open: boolean; t
   );
 }
 
+function renderTrigger(email: string, avatarData: string | null) {
+  return ({ open, toggle }: { open: boolean; toggle: () => void }) => (
+    <UserMenuTrigger open={open} toggle={toggle} email={email} avatarData={avatarData} />
+  );
+}
+
 export function UserMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -51,9 +57,7 @@ export function UserMenu() {
           },
         },
       ]}
-      trigger={({ open, toggle }) => (
-        <UserMenuTrigger open={open} toggle={toggle} email={user.email} avatarData={user.avatarData ?? null} />
-      )}
+      trigger={renderTrigger(user.email, user.avatarData ?? null)}
     />
   );
 }

@@ -126,15 +126,17 @@ export function TaskDetailPage() {
                   <Button size="sm" onClick={handleSaveTitle}>Kaydet</Button>
                 </div>
               </div>
-            ) : (
-              <h1
-                className={cn(
-                  'text-2xl font-extrabold text-ink',
-                  isAuthenticated && 'cursor-pointer hover:text-brand-bright transition-colors',
-                )}
-                onClick={() => isAuthenticated && setEditingTitle(true)}
-                title={isAuthenticated ? 'Duzenlemek icin tiklayin' : undefined}
+            ) : isAuthenticated ? (
+              <button
+                type="button"
+                onClick={() => setEditingTitle(true)}
+                className="text-2xl font-extrabold text-ink cursor-pointer hover:text-brand-bright transition-colors text-left"
+                title="Duzenlemek icin tiklayin"
               >
+                {task.title ?? task.name ?? 'Basliksiz Gorev'}
+              </button>
+            ) : (
+              <h1 className="text-2xl font-extrabold text-ink">
                 {task.title ?? task.name ?? 'Basliksiz Gorev'}
               </h1>
             )}
