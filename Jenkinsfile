@@ -277,25 +277,31 @@ pipeline {
         // Compose paralelleştirilmez — tek seferde tüm servisi yönetir.
         // ------------------------------------------------------
         stage('Deploy') {
-            agent { label 'built-in' }
+            agent none
             when { branch 'master' }
             steps {
-                unstash 'workspace'
-                echo "[BAŞLA] Production deploy (docker compose up -d)"
-                withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
-                    sh '''
-                        set -e
-                        # Onceki build basarisiz biterse .env workspace'te kalmis
-                        # ve farkli uid'li olabilir; once temizle, sonra olusturul.
-                        # Cleanup'i her durumda calistir (trap).
-                        trap 'rm -f .env' EXIT
-                        rm -f .env
-                        install -m 600 "$ENV_FILE" .env
-                        docker compose -f docker-compose.prod.yml pull
-                        docker compose -f docker-compose.prod.yml up -d
-                    '''
+                script {
+                    node('built-in') {
+                        ws("workspace/${env.JOB_NAME}-deploy-${env.BUILD_NUMBER}") {
+                            unstash 'workspace'
+                            echo "[BAŞLA] Production deploy (docker compose up -d)"
+                            withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
+                                sh '''
+                                    set -e
+                                    # Onceki build basarisiz biterse .env workspace'te kalmis
+                                    # ve farkli uid'li olabilir; once temizle, sonra olusturul.
+                                    # Cleanup'i her durumda calistir (trap).
+                                    trap 'rm -f .env' EXIT
+                                    rm -f .env
+                                    install -m 600 "$ENV_FILE" .env
+                                    docker compose -f docker-compose.prod.yml pull
+                                    docker compose -f docker-compose.prod.yml up -d
+                                '''
+                            }
+                            echo "[BİTİŞ] Production deploy tamamlandı"
+                        }
+                    }
                 }
-                echo "[BİTİŞ] Production deploy tamamlandı"
             }
         }
     }
