@@ -5,8 +5,8 @@
 //    audit-logger, auth-server, task-manager, email-sender, frontend, nginx
 //
 //  Akış:
-//    - Her branch (PR dahil): Checkout → Install → Lint → Audit → Sonar
-//    - Sadece 'master' branch: Build → Push → Deploy
+//    - Her branch (PR dahil): Checkout → Install → Lint → Audit → Sonar → Build
+//    - Sadece 'master' branch: Push → Deploy
 //
 //  Paralelleştirme: Install/Lint/Audit/Build/Push stage'leri
 //    NODE_SERVICES (veya SERVICES).collectEntries pattern ile paralel
@@ -17,14 +17,21 @@
 //    yok. Checkout stage'i workspace'i stash eder, diğer stage'ler unstash.
 //
 //  Etiketleme stratejisi (çift tag, her servis için):
-//    - :v2.1-${BUILD_NUMBER}  → immutable, izlenebilir
-//    - :v2.1                  → moving pointer, compose tarafı bunu pull eder
+//    - Master: :v2.1-${BUILD_NUMBER} (immutable) + :v2.1 (moving pointer, compose pull)
+//    - PR:     :pr-${CHANGE_ID}-${BUILD_NUMBER} + :pr-${CHANGE_ID} (lokal, push edilmez)
 //
 //  Multi-agent pattern:
 //    - Quality stages (Install/Lint/Audit):  node:20-alpine (paralel)
 //    - SonarCloud:                           sonarsource/sonar-scanner-cli
 //    - Build / Push / Deploy:                built-in (host docker daemon)
 // ============================================================
+
+// PR build helper — Multibranch Pipeline'da PR build'lerde Jenkins
+// otomatik olarak CHANGE_ID env değişkenini set eder (PR numarası).
+// Branch build'lerde (master dahil) null'dur.
+def isPR() {
+    return env.CHANGE_ID != null
+}
 
 pipeline {
     // Top-level agent yok; her stage kendi container'ında veya paralel branch'inde.
@@ -65,6 +72,7 @@ pipeline {
         stage('Checkout') {
             agent { label 'built-in' }
             steps {
+                echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                 echo "[BAŞLA] Kaynak kod checkout ediliyor (branch=${env.BRANCH_NAME ?: 'n/a'})"
                 checkout scm
                 stash includes: '**', name: 'workspace'
@@ -82,6 +90,7 @@ pipeline {
             agent none
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
@@ -112,6 +121,7 @@ pipeline {
             agent none
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
@@ -142,6 +152,7 @@ pipeline {
             agent none
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
@@ -173,6 +184,7 @@ pipeline {
             agent none
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-sonar-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
@@ -198,27 +210,31 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 6) DOCKER BUILD (sadece master) — paralel (6 servis)
+        // 6) DOCKER BUILD (master + PR) — paralel (6 servis)
         // SERVICES = NODE_SERVICES + nginx. Her servis kendi node'unda
         // build edilir, executor sayısı doğal sınır.
+        // PR build'lerde tag pattern: pr-${CHANGE_ID}-${BUILD_NUMBER} +
+        // pr-${CHANGE_ID} (lokal, push edilmez — Push stage master only).
         // ------------------------------------------------------
         stage('Docker Build') {
             agent none
-            when { branch 'master' }
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     parallel SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
                                 ws("workspace/${env.JOB_NAME}-build-${svc}-${env.BUILD_NUMBER}") {
                                     unstash 'workspace'
                                     def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
-                                    echo "[BAŞLA] ${svc} docker build — ${imageName}:${IMMUTABLE_TAG} + :${VERSION}"
+                                    def buildTag  = isPR() ? "pr-${env.CHANGE_ID}-${env.BUILD_NUMBER}" : "${IMMUTABLE_TAG}"
+                                    def stableTag = isPR() ? "pr-${env.CHANGE_ID}"                    : "${VERSION}"
+                                    echo "[BAŞLA] ${svc} docker build — ${imageName}:${buildTag} + :${stableTag}"
                                     dir(svc) {
                                         sh """
                                             docker build \
-                                              -t ${imageName}:${IMMUTABLE_TAG} \
-                                              -t ${imageName}:${VERSION} \
+                                              -t ${imageName}:${buildTag} \
+                                              -t ${imageName}:${stableTag} \
                                               .
                                         """
                                     }
@@ -243,6 +259,7 @@ pipeline {
             when { branch 'master' }
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     // Önce tek seferlik login
                     node('built-in') {
                         withCredentials([usernamePassword(
@@ -281,6 +298,7 @@ pipeline {
             when { branch 'master' }
             steps {
                 script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-deploy-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
