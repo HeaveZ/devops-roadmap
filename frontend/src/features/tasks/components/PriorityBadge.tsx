@@ -11,21 +11,30 @@ interface Props {
 export function PriorityBadge({ value, onClick, disabled, title }: Props) {
   const info = getPriorityInfo(value);
   const clickable = !!onClick && !disabled;
-  return (
-    <span
-      role={clickable ? 'button' : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onClick={clickable ? onClick : undefined}
-      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } } : undefined}
-      title={title}
-      className={cn(
-        'inline-flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md border font-medium tracking-wide uppercase select-none',
-        info.colorClass,
-        clickable && 'cursor-pointer hover:brightness-110',
-        disabled && 'cursor-not-allowed opacity-60',
-      )}
-    >
-      {info.key === 'none' ? '◇' : '◆'} {info.label}
-    </span>
+  return clickable ? (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        title={title}
+        className={cn(
+          'inline-flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md border font-medium tracking-wide uppercase select-none',
+          info.colorClass,
+          'cursor-pointer hover:brightness-110',
+        )}
+      >
+        {info.key === 'none' ? '◇' : '◆'} {info.label}
+      </button>
+    ) : (
+      <span
+        title={title}
+        className={cn(
+          'inline-flex items-center gap-1 px-2.5 py-1 text-[11px] rounded-md border font-medium tracking-wide uppercase select-none',
+          info.colorClass,
+          disabled && 'cursor-not-allowed opacity-60',
+        )}
+      >
+        {info.key === 'none' ? '◇' : '◆'} {info.label}
+      </span>
   );
 }

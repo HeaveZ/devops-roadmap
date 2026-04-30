@@ -53,8 +53,8 @@ export function PriorityChart({ priorities }: Props) {
               }}
             />
             <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-              {data.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} />
+              {data.map((entry) => (
+                <Cell key={entry.name} fill={entry.fill} />
               ))}
             </Bar>
           </BarChart>

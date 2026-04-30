@@ -30,8 +30,8 @@ export function CompletionChart({ stats }: Props) {
               dataKey="value"
               strokeWidth={0}
             >
-              {data.map((_, i) => (
-                <Cell key={i} fill={COLORS[i]} />
+              {data.map((entry) => (
+                <Cell key={entry.name} fill={entry.name === 'Tamamlanan' ? COLORS[0] : COLORS[1]} />
               ))}
             </Pie>
             <Tooltip

@@ -56,23 +56,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="fixed top-5 right-5 z-[2000] flex flex-col gap-2 max-w-sm">
         {items.map((t) => (
-          <div
+          <output
             key={t.id}
-            role="status"
-            tabIndex={0}
             className={cn(
-              'px-4 py-3 rounded-lg border text-sm shadow-lg animate-fadeIn cursor-pointer',
+              'block px-4 py-3 rounded-lg border text-sm shadow-lg animate-fadeIn cursor-pointer',
               t.kind === 'success' &&
                 'bg-status-green/15 border-status-green/40 text-status-green',
               t.kind === 'error' &&
                 'bg-status-red/15 border-status-red/40 text-status-red',
               t.kind === 'info' && 'bg-navy-800 border-border text-ink',
             )}
-            onClick={() => dismiss(t.id)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(t.id); } }}
           >
-            {t.message}
-          </div>
+            <button
+              type="button"
+              onClick={() => dismiss(t.id)}
+              className="w-full text-left text-inherit"
+            >
+              {t.message}
+            </button>
+          </output>
         ))}
       </div>
     </ToastContext.Provider>

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { cn } from '../lib/cn';
 
 interface ModalProps {
@@ -16,35 +16,49 @@ export function Modal({
   className,
   closeOnBackdrop = true,
 }: ModalProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  if (!open) return null;
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    if (open && !el.open) {
+      el.showModal();
+    } else if (!open && el.open) {
+      el.close();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const handleCancel = (e: Event) => {
+      e.preventDefault();
+      onClose();
+    };
+    el.addEventListener('cancel', handleCancel);
+    return () => el.removeEventListener('cancel', handleCancel);
+  }, [onClose]);
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    if (closeOnBackdrop && e.target === dialogRef.current) {
+      onClose();
+    }
+  };
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-navy-900/90 backdrop-blur-md animate-fadeIn"
-      onClick={() => closeOnBackdrop && onClose()}
-      onKeyDown={(e) => { if (e.key === 'Enter' && closeOnBackdrop) onClose(); }}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-navy-900/90 backdrop-blur-md animate-fadeIn backdrop:bg-transparent p-0 m-auto"
+      onClick={handleBackdropClick}
     >
       <div
         className={cn(
           'bg-navy-800 border border-border rounded-xl p-10 w-[380px] max-w-[90vw] text-center animate-popIn',
           className,
         )}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </div>
+    </dialog>
   );
 }
