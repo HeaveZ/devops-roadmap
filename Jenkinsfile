@@ -175,6 +175,36 @@ pipeline {
         }
 
         // ------------------------------------------------------
+        // 4.5) GITLEAKS SECRET SCAN — zricethezav/gitleaks
+        // Working tree'de sızdırılmış secret arar (AWS key, JWT, API token).
+        // Bir tane bulursa exit 1 → pipeline patlar (default davranış).
+        // --no-git: workspace stash'ten geliyor, .git history yok zaten.
+        // --redact: bulunan secret log'da maskelenir.
+        // ------------------------------------------------------
+        stage('Gitleaks Secret Scan') {
+            agent none
+            steps {
+                script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
+                    node('built-in') {
+                        ws("workspace/${env.JOB_NAME}-gitleaks-${env.BUILD_NUMBER}") {
+                            unstash 'workspace'
+                            echo "[BAŞLA] Gitleaks secret scan"
+                            sh '''
+                                docker run --rm \
+                                    -v "$(pwd):/repo" \
+                                    -w /repo \
+                                    zricethezav/gitleaks:latest \
+                                    detect --source=/repo --verbose --redact --no-git
+                            '''
+                            echo "[BİTİŞ] Gitleaks scan temiz"
+                        }
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------------------------
         // 5) SONARCLOUD ANALYSIS — sonar-scanner-cli (tek scan, 5 servis kaynak)
         // SonarCloud SaaS'a statik kod analizi gönderir.
         // Token Jenkins'te 'sonarcloud-token' credential'ında saklı.
@@ -203,6 +233,40 @@ pipeline {
                                 }
                             }
                             echo "[BİTİŞ] SonarCloud raporu gönderildi"
+                        }
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------------------------
+        // 5.5) TRIVY FILESYSTEM SCAN — aquasec/trivy
+        // Kod + bağımlılık + Dockerfile misconfig + secret tarar.
+        // CRITICAL/HIGH bulunursa exit 1 → pipeline patlar (--exit-code 1).
+        // trivy-cache volume → vuln DB ikinci build'de cache hit (ilk
+        // build ~30s yavaş, sonrakiler hızlı).
+        // ------------------------------------------------------
+        stage('Trivy Filesystem Scan') {
+            agent none
+            steps {
+                script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
+                    node('built-in') {
+                        ws("workspace/${env.JOB_NAME}-trivy-fs-${env.BUILD_NUMBER}") {
+                            unstash 'workspace'
+                            echo "[BAŞLA] Trivy filesystem scan (CRITICAL+HIGH ile patlat)"
+                            sh '''
+                                docker run --rm \
+                                    -v "$(pwd):/repo" \
+                                    -v trivy-cache:/root/.cache/trivy \
+                                    aquasec/trivy:latest \
+                                    fs /repo \
+                                    --severity CRITICAL,HIGH \
+                                    --exit-code 1 \
+                                    --no-progress \
+                                    --scanners vuln,misconfig,secret
+                            '''
+                            echo "[BİTİŞ] Trivy FS scan temiz"
                         }
                     }
                 }
@@ -240,6 +304,47 @@ pipeline {
                                     }
                                     sh "docker images | grep ${svc} || true"
                                     echo "[BİTİŞ] ${svc} image build edildi"
+                                }
+                            }
+                        }]
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------------------------
+        // 6.5) TRIVY IMAGE SCAN — paralel (6 imaj)
+        // Build edilen lokal image'ları (henüz push edilmedi) tarar.
+        // CRITICAL/HIGH varsa exit 1 → push olmaz, pipeline patlar.
+        // --ignore-unfixed: düzeltmesi olmayan vuln'lar atlanır
+        // (false-positive azaltır — base image patch yoksa beklemek gerek).
+        // docker.sock mount → trivy host daemon'daki imajları görür.
+        // Tag pattern Build stage ile aynı (PR-aware: pr-<ID> | v2.1).
+        // ------------------------------------------------------
+        stage('Trivy Image Scan') {
+            agent none
+            steps {
+                script {
+                    echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
+                    parallel SERVICES.split(',').collectEntries { svc ->
+                        ["${svc}": {
+                            node('built-in') {
+                                ws("workspace/${env.JOB_NAME}-trivy-img-${svc}-${env.BUILD_NUMBER}") {
+                                    def stableTag = isPR() ? "pr-${env.CHANGE_ID}" : "${VERSION}"
+                                    def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}:${stableTag}"
+                                    echo "[BAŞLA] Trivy image scan: ${imageName}"
+                                    sh """
+                                        docker run --rm \
+                                            -v /var/run/docker.sock:/var/run/docker.sock \
+                                            -v trivy-cache:/root/.cache/trivy \
+                                            aquasec/trivy:latest \
+                                            image ${imageName} \
+                                            --severity CRITICAL,HIGH \
+                                            --exit-code 1 \
+                                            --no-progress \
+                                            --ignore-unfixed
+                                    """
+                                    echo "[BİTİŞ] ${svc} image scan temiz"
                                 }
                             }
                         }]
