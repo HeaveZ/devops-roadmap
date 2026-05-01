@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { ErrorBoundary } from 'shared/ui/ErrorBoundary';
+import { CommandPalette } from 'features/command/CommandPalette';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -17,6 +18,7 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+      <CommandPalette />
     </div>
   );
 }
