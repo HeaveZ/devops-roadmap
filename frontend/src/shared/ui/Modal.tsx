@@ -46,6 +46,8 @@ export function Modal({
     };
   }, [onClose, closeOnBackdrop]);
 
+  if (!open) return null;
+
   return (
     <dialog
       ref={dialogRef}
