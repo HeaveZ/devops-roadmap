@@ -3,6 +3,7 @@ const startTime = Date.now();
 
 function startHealthServer(port = process.env.HEALTH_PORT || 8080) {
   const app = express();
+  app.disable('x-powered-by');
   app.get('/health', (req, res) => {
     res.status(200).json({
       status: 'ok',
