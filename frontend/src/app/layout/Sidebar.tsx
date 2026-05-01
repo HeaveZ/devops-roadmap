@@ -58,7 +58,7 @@ export function Sidebar() {
       {/* Logo */}
       <Link to={ROUTES.tasks} className="px-6 py-6 border-b border-border/40">
         <div className="flex items-center gap-3">
-          <img src="/taskly-logo.png" alt="Taskly" className="w-9 h-9 rounded-xl object-cover" />
+          <img src="/taskly-192.png" alt="Taskly" className="w-9 h-9 rounded-xl object-cover" />
           <div>
             <h1 className="text-base font-bold text-ink leading-tight">Taskly</h1>
             <p className="text-[11px] text-muted">Proje Yonetimi</p>
