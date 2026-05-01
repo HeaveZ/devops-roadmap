@@ -11,7 +11,7 @@ const EMAIL_SENDER_URL = process.env.EMAIL_SENDER_URL || 'http://email-sender:30
 // Bellekte kod saklama (production'da Redis kullanilmali)
 const verificationCodes = new Map();
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 function generateCode() {
   return crypto.randomInt(100000, 999999).toString();

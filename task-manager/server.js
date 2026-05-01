@@ -64,14 +64,16 @@ async function auditLog(action, user, resource, resourceId, details) {
 }
 
 // Middleware
-const allowedOrigins = (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+const allowedOrigins = new Set(
+  (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.has(origin)) return cb(null, true);
     return cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,
@@ -400,8 +402,8 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
 });
 
 // Task patch icin field'lari topla
-const VALID_PRIORITIES = ['none', 'dusuk', 'orta', 'yuksek', 'kritik'];
-const VALID_STATUSES = ['todo', 'in_progress', 'in_review', 'done'];
+const VALID_PRIORITIES = new Set(['none', 'dusuk', 'orta', 'yuksek', 'kritik']);
+const VALID_STATUSES = new Set(['todo', 'in_progress', 'in_review', 'done']);
 
 function resolveAutoCompleted(status, explicitCompleted) {
   if (status === 'done') return true;
@@ -418,12 +420,12 @@ function buildTaskPatch(body) {
 
   if (body.completed !== undefined) addField('completed', body.completed);
   if (body.priority !== undefined) {
-    if (!VALID_PRIORITIES.includes(body.priority)) return { error: "Gecersiz oncelik degeri" };
+    if (!VALID_PRIORITIES.has(body.priority)) return { error: "Gecersiz oncelik degeri" };
     addField('priority', body.priority);
   }
   if (body.description !== undefined) addField('description', body.description);
   if (body.status !== undefined) {
-    if (!VALID_STATUSES.includes(body.status)) return { error: "Gecersiz durum degeri" };
+    if (!VALID_STATUSES.has(body.status)) return { error: "Gecersiz durum degeri" };
     addField('status', body.status);
     const auto = resolveAutoCompleted(body.status, body.completed);
     if (auto !== undefined) addField('completed', auto);
@@ -817,14 +819,14 @@ app.delete("/api/files/:id", authMiddleware, async (req, res) => {
 // Audit loglari getir
 app.get("/api/audit-logs", authMiddleware, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Math.min(Number.parseInt(req.query.limit, 10) || 50, 200);
+    const offset = Number.parseInt(req.query.offset, 10) || 0;
     const { rows } = await pool.query(
       "SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2",
       [limit, offset]
     );
     const countResult = await pool.query("SELECT COUNT(*) as total FROM audit_logs");
-    res.json({ logs: rows, total: parseInt(countResult.rows[0].total) });
+    res.json({ logs: rows, total: Number.parseInt(countResult.rows[0].total, 10) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

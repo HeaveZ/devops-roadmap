@@ -7,7 +7,7 @@ export function useGuestTrack() {
   return useCallback(
     (action: string, details?: string) => {
       if (isAuthenticated) return;
-      void trackApi.track(action, details);
+      trackApi.track(action, details).catch(() => { /* sessizce yutulur — guest tracking */ });
     },
     [isAuthenticated],
   );
