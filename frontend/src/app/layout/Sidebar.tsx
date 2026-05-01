@@ -58,11 +58,9 @@ export function Sidebar() {
       {/* Logo */}
       <Link to={ROUTES.tasks} className="px-6 py-6 border-b border-border/40">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-brand">
-            <span className="text-white font-bold text-sm">DR</span>
-          </div>
+          <img src="/heaaaaven.png" alt="Taskly" className="w-9 h-9 rounded-xl object-cover" />
           <div>
-            <h1 className="text-base font-bold text-ink leading-tight">DevOps Roadmap</h1>
+            <h1 className="text-base font-bold text-ink leading-tight">Taskly</h1>
             <p className="text-[11px] text-muted">Proje Yonetimi</p>
           </div>
         </div>
