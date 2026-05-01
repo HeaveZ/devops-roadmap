@@ -47,9 +47,22 @@ export interface Task {
   assignee_email?: string;
   due_date?: string | null;
   sprint_id?: number | null;
+  position?: number;
   labels?: Label[];
   subtasks?: Subtask[];
   comments?: TaskComment[];
+}
+
+export interface Notification {
+  id: number;
+  user_email: string;
+  type: string;
+  title: string;
+  message: string | null;
+  resource: string | null;
+  resource_id: string | null;
+  read: boolean;
+  created_at: string;
 }
 
 export type FilterStatus = 'all' | 'active' | 'completed';

@@ -5,6 +5,7 @@ import { PriorityDistribution } from 'features/dashboard/components/PriorityDist
 import { CompletionChart } from 'features/dashboard/components/CompletionChart';
 import { SectionChart } from 'features/dashboard/components/SectionChart';
 import { PriorityChart } from 'features/dashboard/components/PriorityChart';
+import { BurndownChart } from 'features/dashboard/components/BurndownChart';
 import { computeDashboardStats } from 'features/dashboard/utils/stats';
 import { Spinner } from 'shared/ui/Spinner';
 import { useMemo } from 'react';
@@ -32,6 +33,8 @@ export function DashboardPage() {
         <CompletionChart stats={stats} />
         <PriorityChart priorities={stats.priorities} />
       </div>
+
+      <BurndownChart />
 
       <SectionChart sections={stats.sections} />
 

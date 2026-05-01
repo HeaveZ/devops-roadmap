@@ -15,6 +15,7 @@ export const endpoints = {
     comment: (commentId: number | string) => `/api/comments/${commentId}`,
     addLabel: (taskId: number | string) => `/api/tasks/${taskId}/labels`,
     removeLabel: (taskId: number | string, labelId: number | string) => `/api/tasks/${taskId}/labels/${labelId}`,
+    reorder: '/api/tasks/reorder',
   },
   labels: {
     list: '/api/labels',
@@ -24,6 +25,12 @@ export const endpoints = {
     list: '/api/sprints',
     update: (id: number | string) => `/api/sprints/${id}`,
     delete: (id: number | string) => `/api/sprints/${id}`,
+  },
+  notifications: {
+    list: '/api/notifications',
+    unreadCount: '/api/notifications/unread-count',
+    markRead: (id: number | string) => `/api/notifications/${id}/read`,
+    markAllRead: '/api/notifications/read-all',
   },
   files: {
     list: '/api/files',

@@ -8,6 +8,7 @@ export const ROUTES = {
   activity: '/activity',
   sprints: '/sprints',
   labels: '/labels',
+  calendar: '/calendar',
   profile: '/profile',
   login: '/login',
   register: '/register',
