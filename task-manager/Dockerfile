@@ -12,6 +12,13 @@ ENV NODE_ENV=production
 
 RUN apk add --no-cache dumb-init
 
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx \
+    /opt/yarn-* \
+    /usr/local/bin/yarn \
+    /usr/local/bin/yarnpkg 2>/dev/null || true
+
 WORKDIR /app
 
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
