@@ -60,6 +60,13 @@ pipeline {
         // Her stage'de implicit checkout scm ÇALIŞMASIN — Checkout stage'i
         // bir kez yapar ve stash eder; diğer stage'ler unstash ile alır.
         skipDefaultCheckout(true)
+        // Build retention — disk şişmesini engelle.
+        // Workspace cleanup post.always'de yapılıyor; bu da Jenkins meta/log birikimini engeller.
+        buildDiscarder(logRotator(
+            numToKeepStr: '10',
+            artifactNumToKeepStr: '5',
+            daysToKeepStr: '14'
+        ))
     }
 
     stages {
@@ -474,8 +481,34 @@ pipeline {
     // ----------------------------------------------------------
     post {
         always {
+            // Mevcut: Docker logout (DOKUNULMADI)
             node('built-in') {
                 sh 'docker logout ghcr.io || true'
+            }
+            // YENİ: Pipeline TAMAMEN bittikten sonra workspace cleanup.
+            // Bu build'in oluşturduğu paralel ws() dizinleri ARTIK kullanılmıyor.
+            // Pattern: workspace/devops/master-{stage}-{svc}-{BUILD_NUMBER}
+            // Cleanup hatası pipeline'ı patlatmasın diye try/catch içinde.
+            script {
+                try {
+                    node('built-in') {
+                        echo "[CLEANUP] Build #${env.BUILD_NUMBER} workspace temizliği başlıyor"
+                        sh '''
+                            BEFORE=$(df -h / | tail -1 | awk '{print $5}')
+                            find /var/jenkins_home/workspace/devops/ \\
+                                -maxdepth 1 \\
+                                -type d \\
+                                \\( -name "*-${BUILD_NUMBER}" -o -name "*-${BUILD_NUMBER}@tmp" \\) \\
+                                -exec rm -rf {} + 2>/dev/null || true
+                            AFTER=$(df -h / | tail -1 | awk '{print $5}')
+                            echo "[CLEANUP] Disk doluluk: ${BEFORE} -> ${AFTER}"
+                            echo "[CLEANUP] Build #${BUILD_NUMBER} workspace dizinleri silindi"
+                        '''
+                    }
+                } catch (e) {
+                    // Cleanup hatası pipeline'ı patlatmasın
+                    echo "Workspace cleanup hatası (kritik değil): ${e.message}"
+                }
             }
         }
         failure {
