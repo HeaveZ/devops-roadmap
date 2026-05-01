@@ -54,4 +54,7 @@ export const tasksApi = {
 
   removeLabel: (taskId: number | string, labelId: number | string) =>
     apiClient.delete(endpoints.tasks.removeLabel(taskId, labelId)).then(() => undefined),
+
+  reorder: (taskIds: (number | string)[]) =>
+    apiClient.post(endpoints.tasks.reorder, { taskIds }).then((r) => r.data),
 };

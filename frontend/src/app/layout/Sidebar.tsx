@@ -1,5 +1,7 @@
 import { NavLink, Link } from 'react-router-dom';
 import { cn } from 'shared/lib/cn';
+import { useAuth } from 'features/auth/context/AuthContext';
+import { useUnreadCount } from 'features/notifications/hooks/useNotifications';
 import { ROUTES } from '../router/routes';
 
 const navSections = [
@@ -8,6 +10,7 @@ const navSections = [
     items: [
       { to: ROUTES.tasks, label: 'Gorevler', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
       { to: ROUTES.kanban, label: 'Kanban Board', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+      { to: ROUTES.calendar, label: 'Takvim', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
       { to: ROUTES.dashboard, label: 'Dashboard', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z' },
     ],
   },
@@ -33,6 +36,19 @@ function NavIcon({ path }: { path: string }) {
     <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d={path} />
     </svg>
+  );
+}
+
+function NotificationBadge() {
+  const { isAuthenticated } = useAuth();
+  const { data: count = 0 } = useUnreadCount();
+
+  if (!isAuthenticated || count === 0) return null;
+
+  return (
+    <span className="ml-auto bg-brand text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+      {count > 99 ? '99+' : count}
+    </span>
   );
 }
 
@@ -75,6 +91,7 @@ export function Sidebar() {
                 >
                   <NavIcon path={item.icon} />
                   {item.label}
+                  {item.label === 'Aktivite' && <NotificationBadge />}
                 </NavLink>
               ))}
             </div>
@@ -82,9 +99,12 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-6 py-4 border-t border-border/40">
-        <p className="text-[10px] text-muted/40 text-center">v2.1 Premium</p>
+      {/* Keyboard shortcut hint */}
+      <div className="px-4 py-3 border-t border-border/40">
+        <div className="flex items-center justify-center gap-2 text-[10px] text-muted/40">
+          <kbd className="px-1.5 py-0.5 bg-navy-800 border border-border/40 rounded text-[9px] font-mono">Ctrl+K</kbd>
+          <span>Hizli arama</span>
+        </div>
       </div>
     </aside>
   );

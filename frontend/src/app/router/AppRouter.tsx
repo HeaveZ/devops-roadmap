@@ -35,6 +35,9 @@ const SprintManagePage = lazy(() =>
 const LabelManagePage = lazy(() =>
   import('pages/LabelManagePage').then((m) => ({ default: m.LabelManagePage })),
 );
+const CalendarPage = lazy(() =>
+  import('pages/CalendarPage').then((m) => ({ default: m.CalendarPage })),
+);
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<Spinner />}>{children}</Suspense>;
@@ -100,6 +103,14 @@ const router = createBrowserRouter([
               <SprintManagePage />
             </Lazy>
           </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.calendar,
+        element: (
+          <Lazy>
+            <CalendarPage />
+          </Lazy>
         ),
       },
       {

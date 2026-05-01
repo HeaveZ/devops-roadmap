@@ -63,6 +63,31 @@ async function auditLog(action, user, resource, resourceId, details) {
   }
 }
 
+// Bildirim olusturma helper
+async function createNotification(userEmail, type, title, message, resource, resourceId) {
+  if (!userEmail) return;
+  try {
+    await pool.query(
+      "INSERT INTO notifications (user_email, type, title, message, resource, resource_id) VALUES ($1, $2, $3, $4, $5, $6)",
+      [userEmail, type, title, message || null, resource || null, String(resourceId || "")]
+    );
+  } catch (err) {
+    console.error("Bildirim olusturulamadi:", err.message);
+  }
+}
+
+async function createNotification(userEmail, type, title, message, resource, resourceId) {
+  if (!userEmail) return;
+  try {
+    await pool.query(
+      "INSERT INTO notifications (user_email, type, title, message, resource, resource_id) VALUES ($1, $2, $3, $4, $5, $6)",
+      [userEmail, type, title, message || null, resource || null, String(resourceId || "")]
+    );
+  } catch (err) {
+    console.error("Bildirim olusturulamadi:", err.message);
+  }
+}
+
 // Middleware
 const allowedOrigins = new Set(
   (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
@@ -146,6 +171,22 @@ async function initDB() {
     await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS assignee_email VARCHAR(100)`);
     await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date DATE`);
     await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS sprint_id INTEGER`);
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`);
+
+    // Notifications tablosu
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_email VARCHAR(100) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT,
+        resource VARCHAR(50),
+        resource_id VARCHAR(50),
+        read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
 
     // Labels tablosu
     await pool.query(`
@@ -189,6 +230,24 @@ async function initDB() {
         uploaded_by VARCHAR(100) NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_email VARCHAR(100) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT,
+        resource VARCHAR(50),
+        resource_id VARCHAR(50),
+        read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0
     `);
 
     // Tablo bossa varsayilan gorevleri ekle
@@ -300,7 +359,7 @@ app.get("/api/tasks", async (req, res) => {
       params.push(label);
     }
 
-    taskQuery += " ORDER BY section, id";
+    taskQuery += " ORDER BY section, position, id";
 
     const { rows: tasks } = await pool.query(taskQuery, params);
     const { rows: subtasks } = await pool.query("SELECT * FROM subtasks ORDER BY created_at");
@@ -332,6 +391,31 @@ app.get("/api/tasks", async (req, res) => {
       labels: labelMap[t.id] || [],
     }));
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Gorev siralamasini guncelle
+app.post("/api/tasks/reorder", authMiddleware, async (req, res) => {
+  try {
+    const { taskIds } = req.body;
+    if (!Array.isArray(taskIds)) return res.status(400).json({ error: "taskIds dizisi gerekli" });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (let i = 0; i < taskIds.length; i++) {
+        await client.query("UPDATE tasks SET position = $1 WHERE id = $2", [i, taskIds[i]]);
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    auditLog("TASKS_REORDERED", req.user, "task", null, `${taskIds.length} gorev yeniden siralandi`);
+    res.json({ message: "Siralama guncellendi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -456,6 +540,15 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
     if (req.body.status) action = "TASK_STATUS_CHANGED";
     else if (req.body.completed !== undefined) action = req.body.completed ? "TASK_COMPLETED" : "TASK_UNCOMPLETED";
     auditLog(action, req.user, "task", id, rows[0].title);
+    // Assignee degistiyse bildirim gonder
+    if (req.body.assignee_email && req.body.assignee_email !== req.user.email) {
+      createNotification(req.body.assignee_email, 'TASK_ASSIGNED', `Size bir gorev atandi: ${rows[0].title}`, null, 'task', id);
+    }
+
+    if (req.body.assignee_email && req.body.assignee_email !== req.user.email) {
+      createNotification(req.body.assignee_email, 'TASK_ASSIGNED', `Size bir gorev atandi: ${rows[0].title}`, null, 'task', id);
+    }
+
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -540,6 +633,13 @@ app.post("/api/tasks/:id/comments", authMiddleware, async (req, res) => {
       [id, text.trim(), authorName]
     );
     auditLog("COMMENT_CREATED", req.user, "comment", rows[0].id, text.trim());
+
+    const taskResult = await pool.query("SELECT assignee_email, title FROM tasks WHERE id = $1", [id]);
+    const taskData = taskResult.rows[0];
+    if (taskData?.assignee_email && taskData.assignee_email !== req.user.email) {
+      createNotification(taskData.assignee_email, 'COMMENT_ADDED', `${rows[0].author} yorum yapti: ${taskData.title}`, text.trim(), 'task', id);
+    }
+
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -811,6 +911,146 @@ app.delete("/api/files/:id", authMiddleware, async (req, res) => {
     await pool.query("DELETE FROM files WHERE id = $1", [id]);
     auditLog("FILE_DELETED", req.user, "file", id, rows[0].filename);
     res.json({ message: "Silindi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- NOTIFICATIONS ---
+
+// Kullanicinin bildirimlerini getir
+app.get("/api/notifications", authMiddleware, async (req, res) => {
+  try {
+    const { unread } = req.query;
+    let query = "SELECT * FROM notifications WHERE user_email = $1";
+    const params = [req.user.email];
+    if (unread === "true") {
+      query += " AND read = false";
+    }
+    query += " ORDER BY created_at DESC LIMIT 50";
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bildirimi okundu olarak isaretle
+app.patch("/api/notifications/:id/read", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      "UPDATE notifications SET read = true WHERE id = $1 AND user_email = $2 RETURNING *",
+      [id, req.user.email]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Bildirim bulunamadi" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Tum bildirimleri okundu olarak isaretle
+app.post("/api/notifications/read-all", authMiddleware, async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE notifications SET read = true WHERE user_email = $1 AND read = false",
+      [req.user.email]
+    );
+    res.json({ message: "Tum bildirimler okundu olarak isaretlendi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Okunmamis bildirim sayisi
+app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT COUNT(*) FROM notifications WHERE user_email = $1 AND read = false",
+      [req.user.email]
+    );
+    res.json({ count: parseInt(rows[0].count, 10) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- NOTIFICATIONS ---
+
+app.get("/api/notifications", authMiddleware, async (req, res) => {
+  try {
+    let query = "SELECT * FROM notifications WHERE user_email = $1";
+    const params = [req.user.email];
+    if (req.query.unread === 'true') {
+      query += " AND read = false";
+    }
+    query += " ORDER BY created_at DESC LIMIT 50";
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT COUNT(*) as count FROM notifications WHERE user_email = $1 AND read = false",
+      [req.user.email]
+    );
+    res.json({ count: Number.parseInt(rows[0].count, 10) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/notifications/:id/read", authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "UPDATE notifications SET read = true WHERE id = $1 AND user_email = $2 RETURNING *",
+      [req.params.id, req.user.email]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Bildirim bulunamadi" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/notifications/read-all", authMiddleware, async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE notifications SET read = true WHERE user_email = $1 AND read = false",
+      [req.user.email]
+    );
+    res.json({ message: "Tum bildirimler okundu" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- TASK REORDER ---
+
+app.post("/api/tasks/reorder", authMiddleware, async (req, res) => {
+  try {
+    const { taskIds } = req.body;
+    if (!Array.isArray(taskIds)) return res.status(400).json({ error: "taskIds dizisi gerekli" });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (let i = 0; i < taskIds.length; i++) {
+        await client.query("UPDATE tasks SET position = $1 WHERE id = $2", [i, taskIds[i]]);
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    auditLog("TASKS_REORDERED", req.user, "task", null, `${taskIds.length} gorev yeniden siralandi`);
+    res.json({ message: "Siralama guncellendi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
