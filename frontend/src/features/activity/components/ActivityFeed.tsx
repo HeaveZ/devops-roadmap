@@ -19,6 +19,7 @@ const ACTION_META: Record<string, { icon: string; label: string; color: string }
   TASK_ASSIGNED: { icon: '→', label: 'Gorev atandi', color: 'text-brand-bright' },
   TASK_LABEL_ADDED: { icon: '🏷', label: 'Etiket eklendi', color: 'text-brand-bright' },
   TASK_LABEL_REMOVED: { icon: '🏷', label: 'Etiket kaldirildi', color: 'text-muted' },
+  TASK_DELETED: { icon: '✕', label: 'Gorev silindi', color: 'text-status-red' },
   TASKS_REORDERED: { icon: '↕', label: 'Gorevler yeniden siralandi', color: 'text-muted' },
   SUBTASK_CREATED: { icon: '＋', label: 'Alt gorev eklendi', color: 'text-brand-bright' },
   SUBTASK_COMPLETED: { icon: '✓', label: 'Alt gorev tamamlandi', color: 'text-status-green' },

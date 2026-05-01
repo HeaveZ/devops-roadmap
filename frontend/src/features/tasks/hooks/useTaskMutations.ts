@@ -136,3 +136,22 @@ export function useDeleteComment() {
     onSettled: () => qc.invalidateQueries({ queryKey: tasksQueryKey }),
   });
 }
+
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: Task['id']) => tasksApi.deleteTask(id),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: tasksQueryKey });
+      const prev = qc.getQueryData<Task[]>(tasksQueryKey);
+      qc.setQueryData<Task[]>(tasksQueryKey, (current) =>
+        (current ?? []).filter((t) => t.id !== id),
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(tasksQueryKey, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: tasksQueryKey }),
+  });
+}

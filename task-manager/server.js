@@ -555,6 +555,19 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// Gorev sil
+app.delete("/api/tasks/:id", authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query("DELETE FROM tasks WHERE id = $1 RETURNING *", [id]);
+    if (rows.length === 0) return res.status(404).json({ error: "Gorev bulunamadi" });
+    auditLog("TASK_DELETED", req.user, "task", id, rows[0].title);
+    res.json({ message: "Silindi" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Alt gorev olustur
 app.post("/api/tasks/:id/subtasks", authMiddleware, async (req, res) => {
   try {
