@@ -57,4 +57,7 @@ export const tasksApi = {
 
   reorder: (taskIds: (number | string)[]) =>
     apiClient.post(endpoints.tasks.reorder, { taskIds }).then((r) => r.data),
+
+  deleteTask: (id: number | string) =>
+    apiClient.delete(endpoints.tasks.detail(id)).then(() => undefined),
 };
