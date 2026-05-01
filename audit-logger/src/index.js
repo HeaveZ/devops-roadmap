@@ -1,6 +1,9 @@
 require('dotenv').config();
 const { Kafka } = require('kafkajs');
 const pool = require('./db');
+const { startHealthServer } = require('./health-server');
+
+startHealthServer();
 
 const kafka = new Kafka({
   clientId: 'audit-logger',
@@ -8,6 +11,7 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: 'audit-logger-group' });
+const RETRY_DELAY_MS = 5000;
 
 async function initDB() {
   await pool.query(`
@@ -25,12 +29,10 @@ async function initDB() {
   console.log('audit_logs tablosu hazir');
 }
 
-async function start() {
+async function startConsumer() {
   await initDB();
-
   await consumer.connect();
   await consumer.subscribe({ topic: 'audit-log', fromBeginning: false });
-
   console.log('Kafka consumer baslatildi, audit-log dinleniyor...');
 
   await consumer.run({
@@ -50,7 +52,27 @@ async function start() {
   });
 }
 
-start().catch((err) => {
-  console.error('Audit logger baslatilamadi:', err.message);
-  process.exit(1);
-});
+async function runWithRetry() {
+  while (true) {
+    try {
+      await startConsumer();
+      return;
+    } catch (err) {
+      console.error(`Consumer baslatma hatasi, ${RETRY_DELAY_MS}ms sonra tekrar denenecek:`, err.message);
+      try { await consumer.disconnect(); } catch (_) { /* ignore */ }
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+}
+
+runWithRetry();
+
+async function shutdown(signal) {
+  console.log(`${signal} alindi, graceful shutdown...`);
+  try { await consumer.disconnect(); } catch (_) { /* ignore */ }
+  try { await pool.end(); } catch (_) { /* ignore */ }
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
