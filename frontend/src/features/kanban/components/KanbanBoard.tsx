@@ -173,7 +173,7 @@ function KanbanCard({ task, index, onNavigate }: { task: Task; index: number; on
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          role="link"
+          role="button"
           tabIndex={0}
           onClick={onNavigate}
           onKeyDown={(e) => { if (e.key === 'Enter') onNavigate(); }}

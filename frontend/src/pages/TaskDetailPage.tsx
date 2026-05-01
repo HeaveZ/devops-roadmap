@@ -92,6 +92,47 @@ export function TaskDetailPage() {
     handleUpdate({ status, completed });
   };
 
+  const renderTitleSection = () => {
+    if (editingTitle && isAuthenticated) {
+      return (
+        <div className="flex flex-col gap-2">
+          <input
+            type="text"
+            value={titleValue}
+            onChange={(e) => setTitleValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveTitle();
+              if (e.key === 'Escape') setEditingTitle(false);
+            }}
+            className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-lg font-bold text-ink focus:outline-none focus:border-brand/50"
+            autoFocus
+          />
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" variant="ghost" onClick={() => setEditingTitle(false)}>Iptal</Button>
+            <Button size="sm" onClick={handleSaveTitle}>Kaydet</Button>
+          </div>
+        </div>
+      );
+    }
+    if (isAuthenticated) {
+      return (
+        <button
+          type="button"
+          onClick={() => setEditingTitle(true)}
+          className="text-2xl font-extrabold text-ink cursor-pointer hover:text-brand-bright transition-colors text-left"
+          title="Duzenlemek icin tiklayin"
+        >
+          {task.title ?? task.name ?? 'Basliksiz Gorev'}
+        </button>
+      );
+    }
+    return (
+      <h1 className="text-2xl font-extrabold text-ink">
+        {task.title ?? task.name ?? 'Basliksiz Gorev'}
+      </h1>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Back button */}
@@ -108,38 +149,7 @@ export function TaskDetailPage() {
         <div className="lg:col-span-2 flex flex-col gap-5">
           {/* Baslik (inline editable) */}
           <div className="bg-navy-800 border border-border rounded-xl p-5">
-            {editingTitle && isAuthenticated ? (
-              <div className="flex flex-col gap-2">
-                <input
-                  type="text"
-                  value={titleValue}
-                  onChange={(e) => setTitleValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveTitle();
-                    if (e.key === 'Escape') setEditingTitle(false);
-                  }}
-                  className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-lg font-bold text-ink focus:outline-none focus:border-brand/50"
-                  autoFocus
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button size="sm" variant="ghost" onClick={() => setEditingTitle(false)}>Iptal</Button>
-                  <Button size="sm" onClick={handleSaveTitle}>Kaydet</Button>
-                </div>
-              </div>
-            ) : isAuthenticated ? (
-              <button
-                type="button"
-                onClick={() => setEditingTitle(true)}
-                className="text-2xl font-extrabold text-ink cursor-pointer hover:text-brand-bright transition-colors text-left"
-                title="Duzenlemek icin tiklayin"
-              >
-                {task.title ?? task.name ?? 'Basliksiz Gorev'}
-              </button>
-            ) : (
-              <h1 className="text-2xl font-extrabold text-ink">
-                {task.title ?? task.name ?? 'Basliksiz Gorev'}
-              </h1>
-            )}
+            {renderTitleSection()}
           </div>
 
           {/* Aciklama */}

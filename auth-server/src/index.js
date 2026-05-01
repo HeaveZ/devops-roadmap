@@ -9,14 +9,16 @@ const app = express();
 app.disable('x-powered-by');
 const PORT = process.env.PORT || 3001;
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+const allowedOrigins = new Set(
+  (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+);
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.has(origin)) return cb(null, true);
     return cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,
