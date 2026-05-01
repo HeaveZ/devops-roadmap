@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const healthRouter = require('./routes/health');
 const pool = require('./db');
 
 const app = express();
@@ -10,6 +11,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+app.use(healthRouter);
 app.use('/auth', authRoutes);
 
 async function initDB() {

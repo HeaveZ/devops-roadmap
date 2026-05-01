@@ -65,6 +65,17 @@ async function auditLog(action, user, resource, resourceId, details) {
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
+const healthStartTime = Date.now();
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: process.env.SERVICE_NAME || 'task-manager',
+    version: process.env.VERSION || '2.1',
+    uptime_seconds: Math.floor((Date.now() - healthStartTime) / 1000),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // PostgreSQL baglantisi
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

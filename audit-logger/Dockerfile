@@ -27,5 +27,7 @@ COPY --chown=node:node src/ ./src/
 
 USER node
 
+EXPOSE 8080
+
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "src/index.js"]
