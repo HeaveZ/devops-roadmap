@@ -47,7 +47,7 @@ const router = createBrowserRouter([
   {
     element: <AppLayout />,
     children: [
-      { path: ROUTES.home, element: <Navigate to={ROUTES.tasks} replace /> },
+      { path: ROUTES.home, element: <TasksPage /> },
       {
         path: ROUTES.taskDetail,
         element: (
