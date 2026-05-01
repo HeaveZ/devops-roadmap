@@ -426,6 +426,45 @@ pipeline {
                 }
             }
         }
+
+        // ------------------------------------------------------
+        // 9) SMOKE TEST (sadece master) — built-in
+        // Deploy sonrası 6 servisin /health endpoint'ini compose
+        // network içinden, son olarak public uçtan probe eder.
+        // 15 sn warm-up; herhangi biri patlarsa stage FAIL.
+        // ------------------------------------------------------
+        stage('Smoke Test') {
+            agent none
+            when { branch 'master' }
+            steps {
+                script {
+                    node('built-in') {
+                        ws("workspace/${env.JOB_NAME}-smoke-${env.BUILD_NUMBER}") {
+                            echo "[BAŞLA] Smoke test — post-deploy health probe"
+                            sleep 15
+                            sh '''
+                                set -e
+                                echo "--> Internal health (compose network via taskly-nginx-1)"
+                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://auth-server:3001/health
+                                echo ""
+                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://task-manager:5000/health
+                                echo ""
+                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://email-sender:3002/health
+                                echo ""
+                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://audit-logger:8080/health
+                                echo ""
+                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://frontend:80/health
+                                echo ""
+                                echo "--> Public endpoint (Cloudflare -> origin)"
+                                curl -fsS --max-time 10 https://heavezz.uk/health
+                                echo ""
+                            '''
+                            echo "[BİTİŞ] Smoke test başarılı — 5 internal + 1 public uç sağlıklı"
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ----------------------------------------------------------
