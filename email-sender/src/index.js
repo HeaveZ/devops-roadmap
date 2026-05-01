@@ -5,9 +5,21 @@ const emailRoutes = require('./routes/email');
 const healthRouter = require('./routes/health');
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 3002;
 
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('CORS: origin not allowed'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 app.use(healthRouter);

@@ -24,8 +24,10 @@ const upload = multer({
 const { Kafka } = require("kafkajs");
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 5000;
-const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || "http://auth-server:3001";
+// NOSONAR-NEXT: dahili Docker bridge network URL'si, public network'e cikmaz
+const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || "http://auth-server:3001"; // NOSONAR
 
 // Kafka Producer
 const kafka = new Kafka({
@@ -62,7 +64,18 @@ async function auditLog(action, user, resource, resourceId, details) {
 }
 
 // Middleware
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGINS || 'https://heavezz.uk,http://heavezz.uk')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('CORS: origin not allowed'));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '5mb' }));
 
 const healthStartTime = Date.now();

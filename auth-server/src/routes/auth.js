@@ -5,7 +5,8 @@ const pool = require('../db');
 
 const router = express.Router();
 
-const EMAIL_SENDER_URL = process.env.EMAIL_SENDER_URL || 'http://email-sender:3002';
+// NOSONAR-NEXT: dahili Docker bridge network URL'si, public network'e cikmaz
+const EMAIL_SENDER_URL = process.env.EMAIL_SENDER_URL || 'http://email-sender:3002'; // NOSONAR
 
 // Bellekte kod saklama (production'da Redis kullanilmali)
 const verificationCodes = new Map();
