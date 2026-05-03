@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useLabels } from 'features/tasks/hooks/useLabels';
 import { useCreateLabel, useDeleteLabel } from 'features/tasks/hooks/useLabelMutations';
 import { Button } from 'shared/ui/Button';
@@ -6,6 +7,7 @@ import { useToast } from 'shared/ui/Toast';
 import { Spinner } from 'shared/ui/Spinner';
 
 export function LabelManagePage() {
+  usePageTitle('Etiket Yönetimi');
   const { data: labels = [], isLoading } = useLabels();
   const createLabel = useCreateLabel();
   const deleteLabel = useDeleteLabel();

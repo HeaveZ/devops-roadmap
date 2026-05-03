@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { ROUTES } from 'app/router/routes';
 
 export function NotFoundPage() {
+  usePageTitle('Sayfa Bulunamadı');
   return (
     <div className="py-16 text-center">
       <div className="text-6xl font-extrabold text-brand-bright mb-2">404</div>

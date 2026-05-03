@@ -1,3 +1,4 @@
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useTasks } from 'features/tasks/hooks/useTasks';
 import { ProgressOverview } from 'features/dashboard/components/ProgressOverview';
 import { SectionStats } from 'features/dashboard/components/SectionStats';
@@ -11,6 +12,7 @@ import { Spinner } from 'shared/ui/Spinner';
 import { useMemo } from 'react';
 
 export function DashboardPage() {
+  usePageTitle('Dashboard');
   const { data: tasks = [], isLoading } = useTasks();
   const stats = useMemo(() => computeDashboardStats(tasks), [tasks]);
 

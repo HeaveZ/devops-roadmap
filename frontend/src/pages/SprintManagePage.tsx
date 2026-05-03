@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useSprints } from 'features/tasks/hooks/useSprints';
 import { useCreateSprint, useUpdateSprint, useDeleteSprint } from 'features/tasks/hooks/useSprintMutations';
 import { useTasks } from 'features/tasks/hooks/useTasks';
@@ -14,6 +15,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 export function SprintManagePage() {
+  usePageTitle('Sprint Yönetimi');
   const { data: sprints = [], isLoading } = useSprints();
   const { data: tasks = [] } = useTasks();
   const createSprint = useCreateSprint();

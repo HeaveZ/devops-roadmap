@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useTasks } from 'features/tasks/hooks/useTasks';
 import { getPriorityInfo } from 'features/tasks/utils/priority';
 import { getTaskTitle } from 'features/tasks/utils/grouping';
@@ -27,6 +28,7 @@ function formatDateKey(d: Date): string {
 const MONTH_NAMES = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
 export function CalendarPage() {
+  usePageTitle('Takvim');
   const { data: tasks = [], isLoading } = useTasks();
   const navigate = useNavigate();
   const today = new Date();

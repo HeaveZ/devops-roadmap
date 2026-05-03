@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useTaskDetail } from 'features/tasks/hooks/useTaskDetail';
 import { useUpdateTask } from 'features/tasks/hooks/useTaskMutations';
 import { useLabels } from 'features/tasks/hooks/useLabels';
@@ -31,6 +32,7 @@ export function TaskDetailPage() {
   const toast = useToast();
 
   const { data: task, isLoading, error } = useTaskDetail(id!);
+  usePageTitle(task ? (task.title ?? task.name ?? 'Görev Detayı') : 'Görev Detayı');
   const updateTask = useUpdateTask();
   const { data: allLabels = [] } = useLabels();
   const { data: sprints = [] } = useSprints();

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useAuth } from 'features/auth/context/AuthContext';
 import { useTasks } from 'features/tasks/hooks/useTasks';
 import { useTaskFilters } from 'features/tasks/hooks/useTaskFilters';
@@ -10,6 +11,7 @@ import { Spinner } from 'shared/ui/Spinner';
 import { Button } from 'shared/ui/Button';
 
 export function TasksPage() {
+  usePageTitle('Görevler');
   const { isAuthenticated } = useAuth();
   const { data: tasks = [], isLoading, error } = useTasks();
   const filters = useTaskFilters(tasks);

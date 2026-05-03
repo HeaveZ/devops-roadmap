@@ -1,3 +1,4 @@
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useFiles } from 'features/files/hooks/useFiles';
 import { FileDropzone } from 'features/files/components/FileDropzone';
 import { FileList } from 'features/files/components/FileList';
@@ -5,6 +6,7 @@ import { Spinner } from 'shared/ui/Spinner';
 import { EmptyState } from 'shared/ui/EmptyState';
 
 export function FilesPage() {
+  usePageTitle('Dosyalar');
   const { data: files = [], isLoading } = useFiles();
 
   const renderContent = () => {
