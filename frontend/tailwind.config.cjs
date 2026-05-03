@@ -38,6 +38,7 @@ module.exports = {
         ink: '#f1f5f9',
         'ink-secondary': '#94a3b8',
         priority: {
+          acil: '#ff1744',
           kritik: '#ef4444',
           yuksek: '#f59e0b',
           orta: '#eab308',

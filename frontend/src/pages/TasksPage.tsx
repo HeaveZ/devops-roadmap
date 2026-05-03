@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useAuth } from 'features/auth/context/AuthContext';
 import { useTasks } from 'features/tasks/hooks/useTasks';
 import { useTaskFilters } from 'features/tasks/hooks/useTaskFilters';
@@ -10,6 +11,7 @@ import { Spinner } from 'shared/ui/Spinner';
 import { Button } from 'shared/ui/Button';
 
 export function TasksPage() {
+  usePageTitle('Görevler');
   const { isAuthenticated } = useAuth();
   const { data: tasks = [], isLoading, error } = useTasks();
   const filters = useTaskFilters(tasks);
@@ -30,11 +32,11 @@ export function TasksPage() {
     };
   }, [tasks]);
 
-  if (isLoading) return <Spinner label="Backend'e baglaniliyor..." />;
+  if (isLoading) return <Spinner label="Backend'e bağlanılıyor..." />;
   if (error) {
     return (
       <div className="p-6 rounded-xl border border-status-red/40 bg-status-red/10 text-status-red text-center">
-        Backend'e baglanamadi. Lutfen tekrar deneyin.
+        Backend'e bağlanılamadı. Lütfen tekrar deneyin.
       </div>
     );
   }
@@ -51,7 +53,7 @@ export function TasksPage() {
             onClick={() => setShowCreate((s) => !s)}
             className="ml-auto shrink-0"
           >
-            {showCreate ? 'Kapat' : '+ Yeni Gorev'}
+            {showCreate ? 'Kapat' : '+ Yeni Görev'}
           </Button>
         )}
       </div>

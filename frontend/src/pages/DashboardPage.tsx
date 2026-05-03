@@ -1,3 +1,4 @@
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useTasks } from 'features/tasks/hooks/useTasks';
 import { ProgressOverview } from 'features/dashboard/components/ProgressOverview';
 import { SectionStats } from 'features/dashboard/components/SectionStats';
@@ -11,6 +12,7 @@ import { Spinner } from 'shared/ui/Spinner';
 import { useMemo } from 'react';
 
 export function DashboardPage() {
+  usePageTitle('Dashboard');
   const { data: tasks = [], isLoading } = useTasks();
   const stats = useMemo(() => computeDashboardStats(tasks), [tasks]);
 
@@ -23,7 +25,7 @@ export function DashboardPage() {
         <StatCard label="Toplam" value={tasks.length} />
         <StatCard label="Tamamlanan" value={stats.doneItems} color="text-brand-bright" />
         <StatCard label="Kalan" value={stats.totalItems - stats.doneItems} color="text-status-red" />
-        <StatCard label="Ilerleme" value={`${stats.overallPct}%`} color="text-status-green" />
+        <StatCard label="İlerleme" value={`${stats.overallPct}%`} color="text-status-green" />
       </div>
 
       <ProgressOverview percent={stats.overallPct} />

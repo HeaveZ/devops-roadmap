@@ -6,6 +6,7 @@ import { useTasks } from '../hooks/useTasks';
 import { useCreateTask } from '../hooks/useCreateTask';
 import { useSprints } from '../hooks/useSprints';
 import { getSection } from '../utils/grouping';
+import { PRIORITIES } from '../utils/priority';
 
 export function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('');
@@ -39,10 +40,10 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
       },
       {
         onSuccess: () => {
-          toast.success('Gorev olusturuldu');
+          toast.success('Görev oluşturuldu');
           onClose();
         },
-        onError: () => toast.error('Gorev olusturulamadi'),
+        onError: () => toast.error('Görev oluşturulamadı'),
       },
     );
   };
@@ -52,7 +53,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
       <div className="flex flex-col gap-3">
         <input
           type="text"
-          placeholder="Gorev basligi..."
+          placeholder="Görev başlığı..."
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
@@ -60,7 +61,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
           autoFocus
         />
         <textarea
-          placeholder="Aciklama (istege bagli)..."
+          placeholder="Açıklama (isteğe bağlı)..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
@@ -72,7 +73,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
             onChange={(e) => setSection(e.target.value)}
             className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
           >
-            <option value="">Bolum sec veya yeni yaz...</option>
+            <option value="">Bölüm seç veya yeni yaz...</option>
             {existingSections.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -81,7 +82,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
           </select>
           <input
             type="text"
-            placeholder="veya yeni bolum..."
+            placeholder="veya yeni bölüm..."
             value={section}
             onChange={(e) => setSection(e.target.value)}
             className={cn(
@@ -95,18 +96,16 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
             onChange={(e) => setPriority(e.target.value)}
             className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
           >
-            <option value="none">Oncelik: Yok</option>
-            <option value="dusuk">Dusuk</option>
-            <option value="orta">Orta</option>
-            <option value="yuksek">Yuksek</option>
-            <option value="kritik">Kritik</option>
+            {PRIORITIES.map((p) => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
           </select>
           <select
             value={sprintId}
             onChange={(e) => setSprintId(e.target.value)}
             className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
           >
-            <option value="">Sprint secilmedi</option>
+            <option value="">Sprint seçilmedi</option>
             {sprints.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -117,7 +116,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
         <div className="flex gap-3">
           <input
             type="email"
-            placeholder="Atanan kisi (email)..."
+            placeholder="Atanan kişi (email)..."
             value={assignee}
             onChange={(e) => setAssignee(e.target.value)}
             className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50"
@@ -131,14 +130,14 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Iptal
+            İptal
           </Button>
           <Button
             size="sm"
             onClick={handleSubmit}
             disabled={!title.trim() || createTask.isPending}
           >
-            {createTask.isPending ? 'Olusturuluyor...' : 'Olustur'}
+            {createTask.isPending ? 'Oluşturuluyor...' : 'Oluştur'}
           </Button>
         </div>
       </div>

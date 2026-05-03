@@ -4,6 +4,8 @@ import { cn } from 'shared/lib/cn';
 import { useAuth } from 'features/auth/context/AuthContext';
 import { useGuestTrack } from 'features/analytics/hooks/useGuestTrack';
 import { useToast } from 'shared/ui/Toast';
+import { Modal } from 'shared/ui/Modal';
+import { Button } from 'shared/ui/Button';
 import { useUpdateTask, useDeleteTask } from '../hooks/useTaskMutations';
 import { getNextPriority } from '../utils/priority';
 import { getTaskTitle } from '../utils/grouping';
@@ -14,10 +16,10 @@ import { SubtaskList } from './SubtaskList';
 import { CommentList } from './CommentList';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
-  { value: 'todo', label: 'Yapilacak', color: 'text-muted' },
+  { value: 'todo', label: 'Yapılacak', color: 'text-muted' },
   { value: 'in_progress', label: 'Devam Ediyor', color: 'text-accent-orange' },
-  { value: 'in_review', label: 'Incelemede', color: 'text-purple-400' },
-  { value: 'done', label: 'Tamamlandi', color: 'text-status-green' },
+  { value: 'in_review', label: 'İncelemede', color: 'text-purple-400' },
+  { value: 'done', label: 'Tamamlandı', color: 'text-status-green' },
 ];
 
 interface Props {
@@ -34,6 +36,7 @@ export function TaskItem({ task }: Props) {
 
   const [expanded, setExpanded] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const subtasks = task.subtasks ?? [];
   const subDone = subtasks.filter((s) => s.completed).length;
@@ -63,7 +66,10 @@ export function TaskItem({ task }: Props) {
 
   const handleDelete = () => {
     deleteTask.mutate(task.id, {
-      onSuccess: () => toast.success('Gorev silindi'),
+      onSuccess: () => {
+        toast.success('Görev silindi');
+        setShowDeleteConfirm(false);
+      },
     });
   };
 
@@ -115,7 +121,7 @@ export function TaskItem({ task }: Props) {
           value={task.priority ?? 'none'}
           onClick={cyclePriority}
           disabled={!isAuthenticated}
-          title={isAuthenticated ? 'Oncelik degistir' : 'Giris yapin'}
+          title={isAuthenticated ? 'Öncelik değiştir' : 'Giriş yapın'}
         />
         <LevelBadge level={task.level ?? task.difficulty} />
 
@@ -128,7 +134,7 @@ export function TaskItem({ task }: Props) {
               'px-2 py-1 text-[10px] font-medium rounded-md border border-border/60 bg-navy-900/80 focus:outline-none focus:border-brand/50 cursor-pointer appearance-none',
               statusInfo.color,
             )}
-            title="Durum degistir"
+            title="Durum değiştir"
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -164,7 +170,7 @@ export function TaskItem({ task }: Props) {
               ? 'bg-brand/15 border-brand/40 text-brand-bright'
               : 'bg-white/5 border-white/10 text-muted hover:text-ink',
           )}
-          title={expanded ? 'Kapat' : 'Alt gorevler'}
+          title={expanded ? 'Kapat' : 'Alt görevler'}
         >
           {expanded ? '−' : '+'}
         </button>
@@ -173,9 +179,9 @@ export function TaskItem({ task }: Props) {
         {isAuthenticated && (
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={() => setShowDeleteConfirm(true)}
             className="w-8 h-8 rounded-md border border-transparent flex items-center justify-center text-muted/40 hover:text-status-red hover:border-status-red/30 hover:bg-status-red/10 transition-colors opacity-0 group-hover:opacity-100"
-            title="Gorevi sil"
+            title="Görevi sil"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -186,6 +192,39 @@ export function TaskItem({ task }: Props) {
 
       {expanded && <SubtaskList task={task} />}
       {showComments && <CommentList task={task} />}
+
+      {/* Silme onay modal */}
+      <Modal open={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-status-red/15 flex items-center justify-center">
+            <svg className="w-6 h-6 text-status-red" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-ink">Görevi Sil</h3>
+          <p className="text-sm text-muted">
+            <span className="font-semibold text-ink">{getTaskTitle(task)}</span> görevini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          </p>
+          <div className="flex gap-3 mt-2 w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1"
+            >
+              İptal
+            </Button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteTask.isPending}
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-status-red/15 border border-status-red/40 text-status-red hover:bg-status-red/25 transition-colors disabled:opacity-50"
+            >
+              {deleteTask.isPending ? 'Siliniyor...' : 'Evet, Sil'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

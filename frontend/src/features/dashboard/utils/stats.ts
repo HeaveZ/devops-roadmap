@@ -24,10 +24,11 @@ export interface DashboardStats {
 }
 
 const PRIORITY_ORDER: Array<{ key: PriorityKey; label: string; hex: string }> = [
+  { key: 'acil', label: 'Acil', hex: '#FF1744' },
   { key: 'kritik', label: 'Kritik', hex: '#EF5350' },
-  { key: 'yuksek', label: 'Yuksek', hex: '#FF8C00' },
+  { key: 'yuksek', label: 'Yüksek', hex: '#FF8C00' },
   { key: 'orta', label: 'Orta', hex: '#FFD54F' },
-  { key: 'dusuk', label: 'Dusuk', hex: '#64B5F6' },
+  { key: 'dusuk', label: 'Düşük', hex: '#64B5F6' },
   { key: 'none', label: 'Belirsiz', hex: '#7B9BBF' },
 ];
 

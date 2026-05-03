@@ -19,10 +19,10 @@ interface Column {
 }
 
 const COLUMNS: Column[] = [
-  { id: 'todo', title: 'Yapilacak', accentClass: 'border-t-brand' },
+  { id: 'todo', title: 'Yapılacak', accentClass: 'border-t-brand' },
   { id: 'in_progress', title: 'Devam Ediyor', accentClass: 'border-t-accent-orange' },
-  { id: 'in_review', title: 'Incelemede', accentClass: 'border-t-purple-500' },
-  { id: 'done', title: 'Tamamlandi', accentClass: 'border-t-status-green' },
+  { id: 'in_review', title: 'İncelemede', accentClass: 'border-t-purple-500' },
+  { id: 'done', title: 'Tamamlandı', accentClass: 'border-t-status-green' },
 ];
 
 export function KanbanBoard() {
@@ -65,7 +65,7 @@ export function KanbanBoard() {
     const { draggableId, destination } = result;
     if (!destination) return;
     if (!isAuthenticated) {
-      toast.error('Bu islemi yapmak icin giris yapin');
+      toast.error('Bu işlemi yapmak için giriş yapın');
       return;
     }
 
@@ -82,13 +82,13 @@ export function KanbanBoard() {
       {
         onSuccess: () => {
           const statusLabel = COLUMNS.find((c) => c.id === newStatus)?.title ?? newStatus;
-          toast.success(`Gorev durumu: ${statusLabel}`);
+          toast.success(`Görev durumu: ${statusLabel}`);
         },
       },
     );
   };
 
-  if (isLoading) return <Spinner label="Gorevler yukleniyor..." />;
+  if (isLoading) return <Spinner label="Görevler yükleniyor..." />;
 
   return (
     <div>
@@ -96,7 +96,7 @@ export function KanbanBoard() {
         <div>
           <h2 className="text-2xl font-extrabold text-ink">Kanban Board</h2>
           <p className="text-sm text-muted mt-1">
-            Gorevleri surukleyerek durumunu degistir
+            Görevleri sürükleyerek durumunu değiştir
           </p>
         </div>
         {allSections.length > 1 && (
@@ -105,7 +105,7 @@ export function KanbanBoard() {
             onChange={(e) => setFilterSection(e.target.value)}
             className="px-3 py-2 bg-navy-800 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
           >
-            <option value="all">Tum Bolumler</option>
+            <option value="all">Tüm Bölümler</option>
             {allSections.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -150,7 +150,7 @@ function KanbanColumn({ column, items, onNavigate }: { column: Column; items: Ta
             ))}
             {provided.placeholder}
             {items.length === 0 && (
-              <EmptyState className="border-none bg-transparent py-16">Bu kolonda gorev yok</EmptyState>
+              <EmptyState className="border-none bg-transparent py-16">Bu kolonda görev yok</EmptyState>
             )}
           </div>
         )}
@@ -214,7 +214,7 @@ function KanbanCard({ task, index, onNavigate }: { task: Task; index: number; on
             )}
             {subtasks.length > 0 && (
               <span className="text-[10px] text-muted">
-                {subDone}/{subtasks.length} alt gorev
+                {subDone}/{subtasks.length} alt görev
               </span>
             )}
             {comments.length > 0 && (

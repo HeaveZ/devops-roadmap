@@ -22,7 +22,7 @@ export function SectionChart({ sections }: Props) {
   return (
     <div className="bg-navy-800 border border-border rounded-xl p-5">
       <div className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-        Bolum Bazli Ilerleme
+        Bölüm Bazlı İlerleme
       </div>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">

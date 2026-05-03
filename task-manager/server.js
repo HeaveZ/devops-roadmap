@@ -316,7 +316,7 @@ async function authMiddleware(req, res, next) {
       headers: { "Authorization": authHeader },
     });
     if (!verifyRes.ok) {
-      return res.status(401).json({ error: "Gecersiz veya suresi dolmus token" });
+      return res.status(401).json({ error: "Geçersiz veya süresi dolmuş token" });
     }
     const data = await verifyRes.json();
     req.user = { userId: data.userId, email: data.email };
@@ -415,7 +415,7 @@ app.post("/api/tasks/reorder", authMiddleware, async (req, res) => {
       client.release();
     }
     auditLog("TASKS_REORDERED", req.user, "task", null, `${taskIds.length} gorev yeniden siralandi`);
-    res.json({ message: "Siralama guncellendi" });
+    res.json({ message: "Sıralama güncellendi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -427,7 +427,7 @@ app.get("/api/tasks/:id", async (req, res) => {
     const { id } = req.params;
     const { rows: tasks } = await pool.query("SELECT * FROM tasks WHERE id = $1", [id]);
     if (tasks.length === 0) {
-      return res.status(404).json({ error: "Gorev bulunamadi" });
+      return res.status(404).json({ error: "Görev bulunamadı" });
     }
     const task = tasks[0];
     const { rows: subtasks } = await pool.query("SELECT * FROM subtasks WHERE parent_id = $1 ORDER BY created_at", [id]);
@@ -460,7 +460,7 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
   try {
     const { title, section, description, priority, assignee_email, due_date, sprint_id } = req.body;
     if (!title?.trim()) {
-      return res.status(400).json({ error: "Baslik gerekli" });
+      return res.status(400).json({ error: "Başlık gerekli" });
     }
     if (!section?.trim()) {
       return res.status(400).json({ error: "Section gerekli" });
@@ -486,7 +486,7 @@ app.post("/api/tasks", authMiddleware, async (req, res) => {
 });
 
 // Task patch icin field'lari topla
-const VALID_PRIORITIES = new Set(['none', 'dusuk', 'orta', 'yuksek', 'kritik']);
+const VALID_PRIORITIES = new Set(['none', 'dusuk', 'orta', 'yuksek', 'kritik', 'acil']);
 const VALID_STATUSES = new Set(['todo', 'in_progress', 'in_review', 'done']);
 
 function resolveAutoCompleted(status, explicitCompleted) {
@@ -504,12 +504,12 @@ function buildTaskPatch(body) {
 
   if (body.completed !== undefined) addField('completed', body.completed);
   if (body.priority !== undefined) {
-    if (!VALID_PRIORITIES.has(body.priority)) return { error: "Gecersiz oncelik degeri" };
+    if (!VALID_PRIORITIES.has(body.priority)) return { error: "Geçersiz öncelik değeri" };
     addField('priority', body.priority);
   }
   if (body.description !== undefined) addField('description', body.description);
   if (body.status !== undefined) {
-    if (!VALID_STATUSES.has(body.status)) return { error: "Gecersiz durum degeri" };
+    if (!VALID_STATUSES.has(body.status)) return { error: "Geçersiz durum değeri" };
     addField('status', body.status);
     const auto = resolveAutoCompleted(body.status, body.completed);
     if (auto !== undefined) addField('completed', auto);
@@ -534,7 +534,7 @@ app.patch("/api/tasks/:id", authMiddleware, async (req, res) => {
       `UPDATE tasks SET ${patch.updates.join(', ')} WHERE id = $${patch.idx} RETURNING *`,
       patch.values
     );
-    if (rows.length === 0) return res.status(404).json({ error: "Gorev bulunamadi" });
+    if (rows.length === 0) return res.status(404).json({ error: "Görev bulunamadı" });
 
     let action = "TASK_UPDATED";
     if (req.body.status) action = "TASK_STATUS_CHANGED";
@@ -560,7 +560,7 @@ app.delete("/api/tasks/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query("DELETE FROM tasks WHERE id = $1 RETURNING *", [id]);
-    if (rows.length === 0) return res.status(404).json({ error: "Gorev bulunamadi" });
+    if (rows.length === 0) return res.status(404).json({ error: "Görev bulunamadı" });
     auditLog("TASK_DELETED", req.user, "task", id, rows[0].title);
     res.json({ message: "Silindi" });
   } catch (err) {
@@ -574,11 +574,11 @@ app.post("/api/tasks/:id/subtasks", authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { title } = req.body;
     if (!title?.trim()) {
-      return res.status(400).json({ error: "Baslik gerekli" });
+      return res.status(400).json({ error: "Başlık gerekli" });
     }
     const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
     if (parent.rows.length === 0) {
-      return res.status(404).json({ error: "Ust gorev bulunamadi" });
+      return res.status(404).json({ error: "Üst görev bulunamadı" });
     }
     const { rows } = await pool.query(
       "INSERT INTO subtasks (parent_id, title) VALUES ($1, $2) RETURNING *",
@@ -601,7 +601,7 @@ app.patch("/api/subtasks/:id", authMiddleware, async (req, res) => {
       [completed, id]
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Alt gorev bulunamadi" });
+      return res.status(404).json({ error: "Alt görev bulunamadı" });
     }
     auditLog(completed ? "SUBTASK_COMPLETED" : "SUBTASK_UNCOMPLETED", req.user, "subtask", id, rows[0].title);
     res.json(rows[0]);
@@ -619,7 +619,7 @@ app.delete("/api/subtasks/:id", authMiddleware, async (req, res) => {
       [id]
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Alt gorev bulunamadi" });
+      return res.status(404).json({ error: "Alt görev bulunamadı" });
     }
     auditLog("SUBTASK_DELETED", req.user, "subtask", id, rows[0].title);
     res.json({ message: "Silindi" });
@@ -638,7 +638,7 @@ app.post("/api/tasks/:id/comments", authMiddleware, async (req, res) => {
     }
     const parent = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
     if (parent.rows.length === 0) {
-      return res.status(404).json({ error: "Gorev bulunamadi" });
+      return res.status(404).json({ error: "Görev bulunamadı" });
     }
     const authorName = req.user.email;
     const { rows } = await pool.query(
@@ -668,7 +668,7 @@ app.delete("/api/comments/:id", authMiddleware, async (req, res) => {
       [id]
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Yorum bulunamadi" });
+      return res.status(404).json({ error: "Yorum bulunamadı" });
     }
     auditLog("COMMENT_DELETED", req.user, "comment", id, rows[0].text);
     res.json({ message: "Silindi" });
@@ -713,7 +713,7 @@ app.delete("/api/labels/:id", authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { rows } = await pool.query("DELETE FROM labels WHERE id = $1 RETURNING *", [id]);
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Etiket bulunamadi" });
+      return res.status(404).json({ error: "Etiket bulunamadı" });
     }
     auditLog("LABEL_DELETED", req.user, "label", id, rows[0].name);
     res.json({ message: "Silindi" });
@@ -731,10 +731,10 @@ app.post("/api/tasks/:id/labels", authMiddleware, async (req, res) => {
     if (!labelId) return res.status(400).json({ error: "labelId gerekli" });
 
     const task = await pool.query("SELECT id FROM tasks WHERE id = $1", [id]);
-    if (task.rows.length === 0) return res.status(404).json({ error: "Gorev bulunamadi" });
+    if (task.rows.length === 0) return res.status(404).json({ error: "Görev bulunamadı" });
 
     const label = await pool.query("SELECT id, name FROM labels WHERE id = $1", [labelId]);
-    if (label.rows.length === 0) return res.status(404).json({ error: "Etiket bulunamadi" });
+    if (label.rows.length === 0) return res.status(404).json({ error: "Etiket bulunamadı" });
 
     await pool.query(
       "INSERT INTO task_labels (task_id, label_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
@@ -755,7 +755,7 @@ app.delete("/api/tasks/:id/labels/:labelId", authMiddleware, async (req, res) =>
       [id, labelId]
     );
     if (rowCount === 0) {
-      return res.status(404).json({ error: "Etiket iliskisi bulunamadi" });
+      return res.status(404).json({ error: "Etiket ilişkisi bulunamadı" });
     }
     auditLog("TASK_LABEL_REMOVED", req.user, "task_label", id, `label:${labelId}`);
     res.json({ message: "Etiket kaldirildi" });
@@ -815,7 +815,7 @@ app.patch("/api/sprints/:id", authMiddleware, async (req, res) => {
     if (status !== undefined) {
       const validStatuses = ['planning', 'active', 'completed'];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: "Gecersiz sprint durumu" });
+        return res.status(400).json({ error: "Geçersiz sprint durumu" });
       }
       updates.push(`status = $${idx++}`);
       values.push(status);
@@ -829,7 +829,7 @@ app.patch("/api/sprints/:id", authMiddleware, async (req, res) => {
       values
     );
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Sprint bulunamadi" });
+      return res.status(404).json({ error: "Sprint bulunamadı" });
     }
     auditLog("SPRINT_UPDATED", req.user, "sprint", id, rows[0].name);
     res.json(rows[0]);
@@ -845,7 +845,7 @@ app.delete("/api/sprints/:id", authMiddleware, async (req, res) => {
     await pool.query("UPDATE tasks SET sprint_id = NULL WHERE sprint_id = $1", [id]);
     const { rows } = await pool.query("DELETE FROM sprints WHERE id = $1 RETURNING *", [id]);
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Sprint bulunamadi" });
+      return res.status(404).json({ error: "Sprint bulunamadı" });
     }
     auditLog("SPRINT_DELETED", req.user, "sprint", id, rows[0].name);
     res.json({ message: "Silindi" });
@@ -860,7 +860,7 @@ app.delete("/api/sprints/:id", authMiddleware, async (req, res) => {
 app.post("/api/upload", authMiddleware, upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: "Dosya bulunamadi" });
+    if (!file) return res.status(400).json({ error: "Dosya bulunamadı" });
 
     const key = `uploads/${Date.now()}-${file.originalname}`;
 
@@ -913,7 +913,7 @@ app.delete("/api/files/:id", authMiddleware, async (req, res) => {
     const { id } = req.params;
     const { rows } = await pool.query("SELECT * FROM files WHERE id = $1", [id]);
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Dosya bulunamadi" });
+      return res.status(404).json({ error: "Dosya bulunamadı" });
     }
 
     await s3.send(new DeleteObjectCommand({
@@ -956,7 +956,7 @@ app.patch("/api/notifications/:id/read", authMiddleware, async (req, res) => {
       "UPDATE notifications SET read = true WHERE id = $1 AND user_email = $2 RETURNING *",
       [id, req.user.email]
     );
-    if (rows.length === 0) return res.status(404).json({ error: "Bildirim bulunamadi" });
+    if (rows.length === 0) return res.status(404).json({ error: "Bildirim bulunamadı" });
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1024,7 +1024,7 @@ app.patch("/api/notifications/:id/read", authMiddleware, async (req, res) => {
       "UPDATE notifications SET read = true WHERE id = $1 AND user_email = $2 RETURNING *",
       [req.params.id, req.user.email]
     );
-    if (rows.length === 0) return res.status(404).json({ error: "Bildirim bulunamadi" });
+    if (rows.length === 0) return res.status(404).json({ error: "Bildirim bulunamadı" });
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1063,7 +1063,7 @@ app.post("/api/tasks/reorder", authMiddleware, async (req, res) => {
       client.release();
     }
     auditLog("TASKS_REORDERED", req.user, "task", null, `${taskIds.length} gorev yeniden siralandi`);
-    res.json({ message: "Siralama guncellendi" });
+    res.json({ message: "Sıralama güncellendi" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

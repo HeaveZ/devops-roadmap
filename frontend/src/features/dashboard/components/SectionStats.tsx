@@ -5,7 +5,7 @@ export function SectionStats({ sections }: { sections: SectionStat[] }) {
   return (
     <div className="bg-navy-800 border border-border rounded-xl p-5">
       <div className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-        Bolum Ilerleme
+        Bölüm İlerleme
       </div>
       <div className="flex flex-col gap-3">
         {sections.map((s) => (

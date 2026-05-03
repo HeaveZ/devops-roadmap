@@ -6,7 +6,7 @@ import { ROUTES } from '../router/routes';
 import { UserMenu } from './UserMenu';
 
 const navItems = [
-  { to: ROUTES.tasks, label: 'Gorevler' },
+  { to: ROUTES.tasks, label: 'Görevler' },
   { to: ROUTES.kanban, label: 'Kanban' },
   { to: ROUTES.files, label: 'Dosyalar' },
   { to: ROUTES.dashboard, label: 'Dashboard' },
@@ -24,20 +24,20 @@ export function Header() {
       <div className="flex items-start justify-between gap-6">
         <Link to={ROUTES.tasks} className="block">
           <span className="text-[11px] tracking-[0.3em] text-muted font-medium">
-            {'// OGRENME YOLCULUGU'}
+            {'// ÖĞRENME YOLCULUĞU'}
           </span>
           <h1 className="font-sans text-4xl font-extrabold text-ink leading-tight">
             DevOps <span className="text-brand-bright">Roadmap</span>
           </h1>
           <p className="text-sm text-muted mt-1">
-            Sifirdan uretim ortamina - her gorevi tamamla, her adimda buyu
+            Sıfırdan üretim ortamına - her görevi tamamla, her adımda büyü
           </p>
         </Link>
         {isAuthenticated ? (
           <UserMenu />
         ) : (
           <Button size="sm" onClick={() => navigate(ROUTES.login)}>
-            Oturum Ac
+            Oturum Aç
           </Button>
         )}
       </div>

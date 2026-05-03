@@ -41,11 +41,11 @@ export function CommandPalette() {
 
   const commands: CommandItem[] = useMemo(() => {
     const nav: CommandItem[] = [
-      { id: 'nav-tasks', label: 'Gorevler', subtitle: 'Gorev listesine git', action: () => navigate(ROUTES.tasks), icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2' },
-      { id: 'nav-kanban', label: 'Kanban Board', subtitle: 'Kanban gorunumune git', action: () => navigate(ROUTES.kanban), icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
-      { id: 'nav-dashboard', label: 'Dashboard', subtitle: 'Istatistikleri gor', action: () => navigate(ROUTES.dashboard), icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5z' },
-      { id: 'nav-calendar', label: 'Takvim', subtitle: 'Takvim gorunumune git', action: () => navigate('/calendar'), icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-      { id: 'nav-sprints', label: 'Sprintler', subtitle: 'Sprint yonetimi', action: () => navigate(ROUTES.sprints), icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+      { id: 'nav-tasks', label: 'Görevler', subtitle: 'Görev listesine git', action: () => navigate(ROUTES.tasks), icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2' },
+      { id: 'nav-kanban', label: 'Kanban Board', subtitle: 'Kanban görünümüne git', action: () => navigate(ROUTES.kanban), icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+      { id: 'nav-dashboard', label: 'Dashboard', subtitle: 'İstatistikleri gör', action: () => navigate(ROUTES.dashboard), icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5z' },
+      { id: 'nav-calendar', label: 'Takvim', subtitle: 'Takvim görünümüne git', action: () => navigate('/calendar'), icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+      { id: 'nav-sprints', label: 'Sprintler', subtitle: 'Sprint yönetimi', action: () => navigate(ROUTES.sprints), icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     ];
 
     const q = query.toLowerCase();
@@ -56,7 +56,7 @@ export function CommandPalette() {
           .map((t) => ({
             id: `task-${t.id}`,
             label: getTaskTitle(t),
-            subtitle: t.section || 'Gorev',
+            subtitle: t.section || 'Görev',
             action: () => navigate(`/tasks/${t.id}`),
             icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
           }))
@@ -90,14 +90,14 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Sayfa veya gorev ara..."
+            placeholder="Sayfa veya görev ara..."
             className="flex-1 bg-transparent text-sm text-ink placeholder:text-muted/40 outline-none"
           />
           <kbd className="px-2 py-0.5 bg-navy-700 border border-border/40 rounded text-[10px] text-muted font-mono">ESC</kbd>
         </div>
         <div className="max-h-[300px] overflow-y-auto py-2">
           {commands.length === 0 ? (
-            <div className="py-8 text-center text-muted text-sm">Sonuc bulunamadi</div>
+            <div className="py-8 text-center text-muted text-sm">Sonuç bulunamadı</div>
           ) : (
             commands.map((cmd, i) => (
               <button
@@ -122,7 +122,7 @@ export function CommandPalette() {
         </div>
         <div className="px-5 py-2.5 border-t border-border/40 flex items-center gap-4 text-[10px] text-muted/50">
           <span><kbd className="font-mono">↑↓</kbd> gezin</span>
-          <span><kbd className="font-mono">Enter</kbd> sec</span>
+          <span><kbd className="font-mono">Enter</kbd> seç</span>
           <span><kbd className="font-mono">Esc</kbd> kapat</span>
         </div>
       </div>

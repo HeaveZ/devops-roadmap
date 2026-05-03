@@ -30,7 +30,7 @@ export function RegisterForm() {
         navigate(ROUTES.tasks, { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kayit basarisiz');
+      setError(err instanceof Error ? err.message : 'Kayıt başarısız');
     }
   };
 
@@ -40,9 +40,9 @@ export function RegisterForm() {
       className="max-w-sm mx-auto mt-10 bg-navy-800 border border-border rounded-xl p-10 animate-popIn"
     >
       <h2 className="text-2xl font-extrabold text-brand-bright text-center mb-2">
-        Kayit Ol
+        Kayıt Ol
       </h2>
-      <p className="text-center text-muted text-sm mb-6">Yeni hesap olustur</p>
+      <p className="text-center text-muted text-sm mb-6">Yeni hesap oluştur</p>
 
       {error && (
         <div className="mb-4 px-3 py-2 rounded-md bg-status-red/10 border border-status-red/40 text-status-red text-sm text-center">
@@ -60,20 +60,20 @@ export function RegisterForm() {
       />
       <Input
         type="password"
-        placeholder="Sifre..."
+        placeholder="Şifre..."
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         className="mb-6"
       />
 
       <Button type="submit" block disabled={registerMutation.isPending}>
-        {registerMutation.isPending ? 'Yukleniyor...' : 'Kayit Ol'}
+        {registerMutation.isPending ? 'Yükleniyor...' : 'Kayıt Ol'}
       </Button>
 
       <p className="text-center text-xs text-muted mt-5">
-        Zaten hesabin var mi?{' '}
+        Zaten hesabın var mı?{' '}
         <Link to={ROUTES.login} className="text-brand-bright hover:underline">
-          Giris Yap
+          Giriş Yap
         </Link>
       </p>
     </form>

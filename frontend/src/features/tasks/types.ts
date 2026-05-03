@@ -1,4 +1,4 @@
-export type PriorityKey = 'none' | 'dusuk' | 'orta' | 'yuksek' | 'kritik';
+export type PriorityKey = 'none' | 'dusuk' | 'orta' | 'yuksek' | 'kritik' | 'acil';
 export type LevelKey = 'temel' | 'orta' | 'ileri';
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done';
 

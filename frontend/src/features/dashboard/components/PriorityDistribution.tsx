@@ -9,7 +9,7 @@ export function PriorityDistribution({ priorities, total }: Props) {
   return (
     <div className="bg-navy-800 border border-border rounded-xl p-5">
       <div className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-        Oncelik Dagilimi
+        Öncelik Dağılımı
       </div>
       <div className="flex flex-col gap-2">
         {priorities.map((p) => {

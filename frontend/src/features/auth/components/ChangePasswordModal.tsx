@@ -31,7 +31,7 @@ export function ChangePasswordModal({ open, onClose }: Props) {
     setMessage(null);
     try {
       await changeMutation.mutateAsync({ currentPassword, newPassword });
-      setMessage({ kind: 'success', text: 'Sifre degistirildi! Yeni sifrenizle giris yapin...' });
+      setMessage({ kind: 'success', text: 'Şifre değiştirildi! Yeni şifrenizle giriş yapın...' });
       window.setTimeout(() => {
         reset();
         onClose();
@@ -40,7 +40,7 @@ export function ChangePasswordModal({ open, onClose }: Props) {
     } catch (err) {
       setMessage({
         kind: 'error',
-        text: err instanceof Error ? err.message : 'Mevcut sifre yanlis',
+        text: err instanceof Error ? err.message : 'Mevcut şifre yanlış',
       });
       setCurrentPassword('');
     }
@@ -49,9 +49,9 @@ export function ChangePasswordModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={() => { reset(); onClose(); }}>
       <form onSubmit={submit}>
-        <h3 className="text-xl font-bold text-brand-bright mb-2">Sifre Degistir</h3>
+        <h3 className="text-xl font-bold text-brand-bright mb-2">Şifre Değiştir</h3>
         <p className="text-xs text-muted mb-5">
-          Mevcut sifrenizi dogrulayin ve yeni sifrenizi girin
+          Mevcut şifrenizi doğrulayın ve yeni şifrenizi girin
         </p>
 
         {message && (
@@ -68,7 +68,7 @@ export function ChangePasswordModal({ open, onClose }: Props) {
 
         <Input
           type="password"
-          placeholder="Mevcut sifre..."
+          placeholder="Mevcut şifre..."
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           autoFocus
@@ -76,14 +76,14 @@ export function ChangePasswordModal({ open, onClose }: Props) {
         />
         <Input
           type="password"
-          placeholder="Yeni sifre..."
+          placeholder="Yeni şifre..."
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           className="mb-6"
         />
 
         <Button type="submit" block disabled={changeMutation.isPending}>
-          {changeMutation.isPending ? 'Degistiriliyor...' : 'Sifreyi Degistir'}
+          {changeMutation.isPending ? 'Değiştiriliyor...' : 'Şifreyi Değiştir'}
         </Button>
       </form>
     </Modal>

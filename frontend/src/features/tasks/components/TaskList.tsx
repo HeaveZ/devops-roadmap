@@ -13,7 +13,7 @@ export function TaskList({ tasks }: Props) {
   const entries = Object.entries(grouped);
 
   if (entries.length === 0) {
-    return <EmptyState>{'// Bu filtrede gorev bulunamadi'}</EmptyState>;
+    return <EmptyState>{'// Bu filtrede görev bulunamadı'}</EmptyState>;
   }
 
   return (

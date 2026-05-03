@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { usePageTitle } from 'shared/hooks/usePageTitle';
 import { useTaskDetail } from 'features/tasks/hooks/useTaskDetail';
 import { useUpdateTask } from 'features/tasks/hooks/useTaskMutations';
 import { useLabels } from 'features/tasks/hooks/useLabels';
@@ -18,10 +19,10 @@ import { formatFullDate } from 'shared/lib/date';
 import type { TaskStatus } from 'features/tasks/types';
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: 'todo', label: 'Yapilacak' },
+  { value: 'todo', label: 'Yapılacak' },
   { value: 'in_progress', label: 'Devam Ediyor' },
-  { value: 'in_review', label: 'Incelemede' },
-  { value: 'done', label: 'Tamamlandi' },
+  { value: 'in_review', label: 'İncelemede' },
+  { value: 'done', label: 'Tamamlandı' },
 ];
 
 export function TaskDetailPage() {
@@ -31,6 +32,7 @@ export function TaskDetailPage() {
   const toast = useToast();
 
   const { data: task, isLoading, error } = useTaskDetail(id!);
+  usePageTitle(task ? (task.title ?? task.name ?? 'Görev Detayı') : 'Görev Detayı');
   const updateTask = useUpdateTask();
   const { data: allLabels = [] } = useLabels();
   const { data: sprints = [] } = useSprints();
@@ -50,14 +52,14 @@ export function TaskDetailPage() {
     }
   }, [task]);
 
-  if (isLoading) return <Spinner label="Gorev yukleniyor..." />;
+  if (isLoading) return <Spinner label="Görev yükleniyor..." />;
   if (error || !task) {
     return (
       <div className="p-6 rounded-xl border border-status-red/40 bg-status-red/10 text-status-red text-center">
-        Gorev bulunamadi.
+        Görev bulunamadı.
         <div className="mt-3">
           <Button size="sm" variant="ghost" onClick={() => navigate(ROUTES.tasks)}>
-            Gorevlere Don
+            Görevlere Dön
           </Button>
         </div>
       </div>
@@ -72,7 +74,7 @@ export function TaskDetailPage() {
   const handleUpdate = (patch: Record<string, unknown>) => {
     updateTask.mutate(
       { id: task.id, patch },
-      { onSuccess: () => toast.success('Guncellendi') },
+      { onSuccess: () => toast.success('Güncellendi') },
     );
   };
 
@@ -108,7 +110,7 @@ export function TaskDetailPage() {
             autoFocus
           />
           <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="ghost" onClick={() => setEditingTitle(false)}>Iptal</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditingTitle(false)}>İptal</Button>
             <Button size="sm" onClick={handleSaveTitle}>Kaydet</Button>
           </div>
         </div>
@@ -120,15 +122,15 @@ export function TaskDetailPage() {
           type="button"
           onClick={() => setEditingTitle(true)}
           className="text-2xl font-extrabold text-ink cursor-pointer hover:text-brand-bright transition-colors text-left"
-          title="Duzenlemek icin tiklayin"
+          title="Düzenlemek için tıklayın"
         >
-          {task.title ?? task.name ?? 'Basliksiz Gorev'}
+          {task.title ?? task.name ?? 'Başlıksız Görev'}
         </button>
       );
     }
     return (
       <h1 className="text-2xl font-extrabold text-ink">
-        {task.title ?? task.name ?? 'Basliksiz Gorev'}
+        {task.title ?? task.name ?? 'Başlıksız Görev'}
       </h1>
     );
   };
@@ -141,28 +143,28 @@ export function TaskDetailPage() {
         onClick={() => navigate(ROUTES.tasks)}
         className="text-sm text-muted hover:text-ink transition-colors w-max flex items-center gap-1"
       >
-        <span>&larr;</span> Gorevlere Don
+        <span>&larr;</span> Görevlere Dön
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sol: Ana icerik */}
+        {/* Sol: Ana içerik */}
         <div className="lg:col-span-2 flex flex-col gap-5">
-          {/* Baslik (inline editable) */}
+          {/* Başlık */}
           <div className="bg-navy-800 border border-border rounded-xl p-5">
             {renderTitleSection()}
           </div>
 
-          {/* Aciklama */}
+          {/* Açıklama */}
           <div className="bg-navy-800 border border-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs tracking-widest text-muted uppercase">Aciklama</h3>
+              <h3 className="text-xs tracking-widest text-muted uppercase">Açıklama</h3>
               {!editingDesc && isAuthenticated && (
                 <button
                   type="button"
                   onClick={() => { setDescValue(task.description || ''); setEditingDesc(true); }}
                   className="text-xs text-brand-bright hover:underline"
                 >
-                  Duzenle
+                  Düzenle
                 </button>
               )}
             </div>
@@ -173,11 +175,11 @@ export function TaskDetailPage() {
                   onChange={(e) => setDescValue(e.target.value)}
                   rows={5}
                   className="w-full px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink resize-y focus:outline-none focus:border-brand/50"
-                  placeholder="Aciklama ekleyin..."
+                  placeholder="Açıklama ekleyin..."
                   autoFocus
                 />
                 <div className="flex gap-2 justify-end">
-                  <Button size="sm" variant="ghost" onClick={() => setEditingDesc(false)}>Iptal</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingDesc(false)}>İptal</Button>
                   <Button size="sm" onClick={handleSaveDesc}>Kaydet</Button>
                 </div>
               </div>
@@ -186,14 +188,14 @@ export function TaskDetailPage() {
                 'text-sm text-ink whitespace-pre-wrap min-h-[40px]',
                 !task.description && 'text-muted/50 italic',
               )}>
-                {task.description || 'Aciklama eklenmemis. Eklemek icin Duzenle butonuna tiklayin.'}
+                {task.description || 'Açıklama eklenmemiş. Eklemek için Düzenle butonuna tıklayın.'}
               </p>
             )}
           </div>
 
-          {/* Alt gorevler */}
+          {/* Alt görevler */}
           <div className="bg-navy-800 border border-border rounded-xl p-5">
-            <h3 className="text-xs tracking-widest text-muted uppercase mb-3">Alt Gorevler</h3>
+            <h3 className="text-xs tracking-widest text-muted uppercase mb-3">Alt Görevler</h3>
             <SubtaskList task={task} />
           </div>
 
@@ -203,7 +205,7 @@ export function TaskDetailPage() {
           </div>
         </div>
 
-        {/* Sag: Sidebar */}
+        {/* Sağ: Sidebar */}
         <div className="flex flex-col gap-4">
           {/* Durum */}
           <SidebarCard label="Durum">
@@ -228,8 +230,8 @@ export function TaskDetailPage() {
             </div>
           </SidebarCard>
 
-          {/* Oncelik */}
-          <SidebarCard label="Oncelik">
+          {/* Öncelik */}
+          <SidebarCard label="Öncelik">
             <select
               value={task.priority || 'none'}
               onChange={(e) => handleUpdate({ priority: e.target.value })}
@@ -237,7 +239,7 @@ export function TaskDetailPage() {
               className="w-full px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {PRIORITIES.map((p) => (
-                <option key={p.key} value={p.key}>{p.label === '-' ? 'Yok' : p.label}</option>
+                <option key={p.key} value={p.key}>{p.label}</option>
               ))}
             </select>
             {pri.key !== 'none' && (
@@ -247,8 +249,8 @@ export function TaskDetailPage() {
             )}
           </SidebarCard>
 
-          {/* Atanan Kisi */}
-          <SidebarCard label="Atanan Kisi">
+          {/* Atanan Kişi */}
+          <SidebarCard label="Atanan Kişi">
             <input
               type="email"
               placeholder="email@ornek.com"
@@ -259,8 +261,8 @@ export function TaskDetailPage() {
             />
           </SidebarCard>
 
-          {/* Bitis Tarihi */}
-          <SidebarCard label="Bitis Tarihi">
+          {/* Bitiş Tarihi */}
+          <SidebarCard label="Bitiş Tarihi">
             <input
               type="date"
               defaultValue={task.due_date?.split('T')[0] || ''}
@@ -283,7 +285,7 @@ export function TaskDetailPage() {
               disabled={!isAuthenticated}
               className="w-full px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Sprint secilmedi</option>
+              <option value="">Sprint seçilmedi</option>
               {sprints.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -347,7 +349,7 @@ export function TaskDetailPage() {
               </div>
             )}
             {showLabelPicker && availableLabels.length === 0 && (
-              <span className="text-xs text-muted/50 italic">Eklenecek etiket kalmadi</span>
+              <span className="text-xs text-muted/50 italic">Eklenecek etiket kalmadı</span>
             )}
           </SidebarCard>
         </div>
