@@ -23,7 +23,7 @@ export function PriorityBadge({ value, onClick, disabled, title }: Props) {
           'cursor-pointer hover:brightness-110',
         )}
       >
-        {info.key === 'none' ? '◇' : '◆'} {info.label}
+        {info.key === 'none' ? '◇' : info.key === 'acil' ? '🔥' : '◆'} {info.label}
       </button>
     ) : (
       <span
@@ -34,7 +34,7 @@ export function PriorityBadge({ value, onClick, disabled, title }: Props) {
           disabled && 'cursor-not-allowed opacity-60',
         )}
       >
-        {info.key === 'none' ? '◇' : '◆'} {info.label}
+        {info.key === 'none' ? '◇' : info.key === 'acil' ? '🔥' : '◆'} {info.label}
       </span>
   );
 }

@@ -10,7 +10,7 @@ import { cn } from 'shared/lib/cn';
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   planning: { label: 'Planlama', color: 'text-muted' },
   active: { label: 'Aktif', color: 'text-accent-orange' },
-  completed: { label: 'Tamamlandi', color: 'text-status-green' },
+  completed: { label: 'Tamamlandı', color: 'text-status-green' },
 };
 
 export function SprintManagePage() {
@@ -30,8 +30,8 @@ export function SprintManagePage() {
     createSprint.mutate(
       { name: name.trim(), start_date: startDate || undefined, end_date: endDate || undefined },
       {
-        onSuccess: () => { toast.success('Sprint olusturuldu'); setName(''); setStartDate(''); setEndDate(''); },
-        onError: () => toast.error('Sprint olusturulamadi'),
+        onSuccess: () => { toast.success('Sprint oluşturuldu'); setName(''); setStartDate(''); setEndDate(''); },
+        onError: () => toast.error('Sprint oluşturulamadı'),
       },
     );
   };
@@ -39,22 +39,22 @@ export function SprintManagePage() {
   const taskCountForSprint = (sprintId: number) =>
     tasks.filter((t) => t.sprint_id === sprintId).length;
 
-  if (isLoading) return <Spinner label="Sprintler yukleniyor..." />;
+  if (isLoading) return <Spinner label="Sprintler yükleniyor..." />;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-extrabold text-ink">Sprint Yonetimi</h2>
-        <p className="text-sm text-muted mt-1">Sprintleri olustur, duzenle ve yonet</p>
+        <h2 className="text-2xl font-extrabold text-ink">Sprint Yönetimi</h2>
+        <p className="text-sm text-muted mt-1">Sprintleri oluştur, düzenle ve yönet</p>
       </div>
 
-      {/* Olusturma formu */}
+      {/* Oluşturma formu */}
       <div className="bg-navy-800 border border-border rounded-xl p-5">
         <h3 className="text-xs tracking-widest text-muted uppercase mb-3">Yeni Sprint</h3>
         <div className="flex flex-wrap gap-3">
           <input
             type="text"
-            placeholder="Sprint adi..."
+            placeholder="Sprint adı..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -73,7 +73,7 @@ export function SprintManagePage() {
             className="px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink focus:outline-none focus:border-brand/50"
           />
           <Button size="sm" onClick={handleCreate} disabled={!name.trim() || createSprint.isPending}>
-            Olustur
+            Oluştur
           </Button>
         </div>
       </div>
@@ -90,7 +90,7 @@ export function SprintManagePage() {
                   <h4 className="text-sm font-bold text-ink">{sprint.name}</h4>
                   <span className={cn('text-[11px] font-medium', info.color)}>{info.label}</span>
                   <span className="text-[11px] text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                    {count} gorev
+                    {count} görev
                   </span>
                 </div>
                 <div className="text-xs text-muted mt-1">
@@ -104,7 +104,7 @@ export function SprintManagePage() {
                     variant="ghost"
                     onClick={() => updateSprint.mutate({ id: sprint.id, data: { status: 'active' } })}
                   >
-                    Baslat
+                    Başlat
                   </Button>
                 )}
                 {sprint.status === 'active' && (
@@ -133,7 +133,7 @@ export function SprintManagePage() {
           );
         })}
         {sprints.length === 0 && (
-          <div className="text-center text-muted py-10">Henuz sprint olusturulmamis</div>
+          <div className="text-center text-muted py-10">Henüz sprint oluşturulmamış</div>
         )}
       </div>
     </div>

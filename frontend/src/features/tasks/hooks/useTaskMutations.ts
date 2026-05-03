@@ -34,16 +34,25 @@ export function useUpdateTask() {
     mutationFn: ({ id, patch }: PatchPayload) => tasksApi.update(id, patch),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: tasksQueryKey });
+      await qc.cancelQueries({ queryKey: ['task', id] });
       const prev = qc.getQueryData<Task[]>(tasksQueryKey);
+      const prevDetail = qc.getQueryData<Task>(['task', id]);
       qc.setQueryData<Task[]>(tasksQueryKey, (current) =>
         (current ?? []).map((t) => (t.id === id ? { ...t, ...patch } : t)),
       );
-      return { prev };
+      if (prevDetail) {
+        qc.setQueryData<Task>(['task', id], { ...prevDetail, ...patch });
+      }
+      return { prev, prevDetail };
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err, { id }, ctx) => {
       if (ctx?.prev) qc.setQueryData(tasksQueryKey, ctx.prev);
+      if (ctx?.prevDetail) qc.setQueryData(['task', id], ctx.prevDetail);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: tasksQueryKey }),
+    onSettled: (_data, _err, { id }) => {
+      qc.invalidateQueries({ queryKey: tasksQueryKey });
+      qc.invalidateQueries({ queryKey: ['task', id] });
+    },
   });
 }
 

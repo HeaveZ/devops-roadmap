@@ -10,39 +10,39 @@ import type { AuditLog } from '../types';
 const PAGE_SIZE = 30;
 
 const ACTION_META: Record<string, { icon: string; label: string; color: string }> = {
-  TASK_COMPLETED: { icon: '✓', label: 'Gorev tamamlandi', color: 'text-status-green' },
-  TASK_UNCOMPLETED: { icon: '↩', label: 'Gorev yeniden acildi', color: 'text-accent-orange' },
-  TASK_CREATED: { icon: '+', label: 'Gorev olusturuldu', color: 'text-brand-bright' },
-  TASK_UPDATED: { icon: '✎', label: 'Gorev guncellendi', color: 'text-brand-bright' },
-  TASK_STATUS_CHANGED: { icon: '⟳', label: 'Gorev durumu degisti', color: 'text-accent-orange' },
-  TASK_PRIORITY_CHANGED: { icon: '◆', label: 'Oncelik degisti', color: 'text-priority-yuksek' },
-  TASK_ASSIGNED: { icon: '→', label: 'Gorev atandi', color: 'text-brand-bright' },
+  TASK_COMPLETED: { icon: '✓', label: 'Görev tamamlandı', color: 'text-status-green' },
+  TASK_UNCOMPLETED: { icon: '↩', label: 'Görev yeniden açıldı', color: 'text-accent-orange' },
+  TASK_CREATED: { icon: '+', label: 'Görev oluşturuldu', color: 'text-brand-bright' },
+  TASK_UPDATED: { icon: '✎', label: 'Görev güncellendi', color: 'text-brand-bright' },
+  TASK_STATUS_CHANGED: { icon: '⟳', label: 'Görev durumu değişti', color: 'text-accent-orange' },
+  TASK_PRIORITY_CHANGED: { icon: '◆', label: 'Öncelik değişti', color: 'text-priority-yuksek' },
+  TASK_ASSIGNED: { icon: '→', label: 'Görev atandı', color: 'text-brand-bright' },
   TASK_LABEL_ADDED: { icon: '🏷', label: 'Etiket eklendi', color: 'text-brand-bright' },
-  TASK_LABEL_REMOVED: { icon: '🏷', label: 'Etiket kaldirildi', color: 'text-muted' },
-  TASK_DELETED: { icon: '✕', label: 'Gorev silindi', color: 'text-status-red' },
-  TASKS_REORDERED: { icon: '↕', label: 'Gorevler yeniden siralandi', color: 'text-muted' },
-  SUBTASK_CREATED: { icon: '＋', label: 'Alt gorev eklendi', color: 'text-brand-bright' },
-  SUBTASK_COMPLETED: { icon: '✓', label: 'Alt gorev tamamlandi', color: 'text-status-green' },
-  SUBTASK_UNCOMPLETED: { icon: '↩', label: 'Alt gorev acildi', color: 'text-accent-orange' },
-  SUBTASK_DELETED: { icon: '✕', label: 'Alt gorev silindi', color: 'text-status-red' },
+  TASK_LABEL_REMOVED: { icon: '🏷', label: 'Etiket kaldırıldı', color: 'text-muted' },
+  TASK_DELETED: { icon: '✕', label: 'Görev silindi', color: 'text-status-red' },
+  TASKS_REORDERED: { icon: '↕', label: 'Görevler yeniden sıralandı', color: 'text-muted' },
+  SUBTASK_CREATED: { icon: '＋', label: 'Alt görev eklendi', color: 'text-brand-bright' },
+  SUBTASK_COMPLETED: { icon: '✓', label: 'Alt görev tamamlandı', color: 'text-status-green' },
+  SUBTASK_UNCOMPLETED: { icon: '↩', label: 'Alt görev açıldı', color: 'text-accent-orange' },
+  SUBTASK_DELETED: { icon: '✕', label: 'Alt görev silindi', color: 'text-status-red' },
   COMMENT_CREATED: { icon: '💬', label: 'Yorum eklendi', color: 'text-brand-bright' },
   COMMENT_DELETED: { icon: '✕', label: 'Yorum silindi', color: 'text-status-red' },
-  LABEL_CREATED: { icon: '🏷', label: 'Etiket olusturuldu', color: 'text-brand-bright' },
+  LABEL_CREATED: { icon: '🏷', label: 'Etiket oluşturuldu', color: 'text-brand-bright' },
   LABEL_DELETED: { icon: '✕', label: 'Etiket silindi', color: 'text-status-red' },
-  SPRINT_CREATED: { icon: '⚡', label: 'Sprint olusturuldu', color: 'text-brand-bright' },
-  SPRINT_UPDATED: { icon: '⚡', label: 'Sprint guncellendi', color: 'text-accent-orange' },
+  SPRINT_CREATED: { icon: '⚡', label: 'Sprint oluşturuldu', color: 'text-brand-bright' },
+  SPRINT_UPDATED: { icon: '⚡', label: 'Sprint güncellendi', color: 'text-accent-orange' },
   SPRINT_DELETED: { icon: '✕', label: 'Sprint silindi', color: 'text-status-red' },
-  FILE_UPLOADED: { icon: '↑', label: 'Dosya yuklendi', color: 'text-brand-bright' },
+  FILE_UPLOADED: { icon: '↑', label: 'Dosya yüklendi', color: 'text-brand-bright' },
   FILE_DELETED: { icon: '✕', label: 'Dosya silindi', color: 'text-status-red' },
-  USER_LOGIN: { icon: '→', label: 'Giris yapildi', color: 'text-status-green' },
-  USER_REGISTERED: { icon: '★', label: 'Kayit olundu', color: 'text-brand-bright' },
-  PASSWORD_CHANGED: { icon: '🔑', label: 'Sifre degistirildi', color: 'text-accent-orange' },
-  AVATAR_UPDATED: { icon: '📷', label: 'Avatar guncellendi', color: 'text-brand-bright' },
+  USER_LOGIN: { icon: '→', label: 'Giriş yapıldı', color: 'text-status-green' },
+  USER_REGISTERED: { icon: '★', label: 'Kayıt olundu', color: 'text-brand-bright' },
+  PASSWORD_CHANGED: { icon: '🔑', label: 'Şifre değiştirildi', color: 'text-accent-orange' },
+  AVATAR_UPDATED: { icon: '📷', label: 'Avatar güncellendi', color: 'text-brand-bright' },
 };
 
 function getActionMeta(action: string) {
   if (action.startsWith('GUEST_')) {
-    return { icon: '👁', label: 'Misafir etkilesim', color: 'text-muted' };
+    return { icon: '👁', label: 'Misafir etkileşim', color: 'text-muted' };
   }
   return ACTION_META[action] ?? { icon: '•', label: action, color: 'text-muted' };
 }
@@ -93,7 +93,7 @@ export function ActivityFeed() {
   const hasPrev = offset > 0;
 
   if (isLoading && logs.length === 0) {
-    return <Spinner label="Aktivite yukleniyor..." />;
+    return <Spinner label="Aktivite yükleniyor..." />;
   }
 
   return (
@@ -102,13 +102,13 @@ export function ActivityFeed() {
         <div>
           <h2 className="text-2xl font-extrabold text-ink">Aktivite Logu</h2>
           <p className="text-sm text-muted mt-1">
-            Tum islemler ve degisiklikler — {total} kayit
+            Tüm işlemler ve değişiklikler — {total} kayıt
           </p>
         </div>
       </div>
 
       {logs.length === 0 ? (
-        <EmptyState>Henuz aktivite kaydedilmemis</EmptyState>
+        <EmptyState>Henüz aktivite kaydedilmemiş</EmptyState>
       ) : (
         <div className="space-y-2">
           {logs.map((log) => (
@@ -125,7 +125,7 @@ export function ActivityFeed() {
             disabled={!hasPrev}
             onClick={() => setOffset((p) => Math.max(0, p - PAGE_SIZE))}
           >
-            Onceki
+            Önceki
           </Button>
           <span className="text-xs text-muted">
             {offset + 1}-{Math.min(offset + PAGE_SIZE, total)} / {total}

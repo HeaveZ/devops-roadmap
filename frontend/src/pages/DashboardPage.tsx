@@ -23,7 +23,7 @@ export function DashboardPage() {
         <StatCard label="Toplam" value={tasks.length} />
         <StatCard label="Tamamlanan" value={stats.doneItems} color="text-brand-bright" />
         <StatCard label="Kalan" value={stats.totalItems - stats.doneItems} color="text-status-red" />
-        <StatCard label="Ilerleme" value={`${stats.overallPct}%`} color="text-status-green" />
+        <StatCard label="İlerleme" value={`${stats.overallPct}%`} color="text-status-green" />
       </div>
 
       <ProgressOverview percent={stats.overallPct} />

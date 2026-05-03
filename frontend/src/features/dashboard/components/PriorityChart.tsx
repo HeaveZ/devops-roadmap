@@ -27,7 +27,7 @@ export function PriorityChart({ priorities }: Props) {
   return (
     <div className="bg-navy-800 border border-border rounded-xl p-5">
       <div className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-        Oncelik Dagilimi (Grafik)
+        Öncelik Dağılımı (Grafik)
       </div>
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">

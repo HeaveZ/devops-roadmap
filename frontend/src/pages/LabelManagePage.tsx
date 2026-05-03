@@ -19,28 +19,28 @@ export function LabelManagePage() {
     createLabel.mutate(
       { name: name.trim(), color },
       {
-        onSuccess: () => { toast.success('Etiket olusturuldu'); setName(''); },
-        onError: () => toast.error('Etiket olusturulamadi'),
+        onSuccess: () => { toast.success('Etiket oluşturuldu'); setName(''); },
+        onError: () => toast.error('Etiket oluşturulamadı'),
       },
     );
   };
 
-  if (isLoading) return <Spinner label="Etiketler yukleniyor..." />;
+  if (isLoading) return <Spinner label="Etiketler yükleniyor..." />;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-extrabold text-ink">Etiket Yonetimi</h2>
-        <p className="text-sm text-muted mt-1">Etiketleri olustur ve yonet</p>
+        <h2 className="text-2xl font-extrabold text-ink">Etiket Yönetimi</h2>
+        <p className="text-sm text-muted mt-1">Etiketleri oluştur ve yönet</p>
       </div>
 
-      {/* Olusturma formu */}
+      {/* Oluşturma formu */}
       <div className="bg-navy-800 border border-border rounded-xl p-5">
         <h3 className="text-xs tracking-widest text-muted uppercase mb-3">Yeni Etiket</h3>
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="Etiket adi..."
+            placeholder="Etiket adı..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -53,7 +53,7 @@ export function LabelManagePage() {
             className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-navy-900"
           />
           <Button size="sm" onClick={handleCreate} disabled={!name.trim() || createLabel.isPending}>
-            Olustur
+            Oluştur
           </Button>
         </div>
       </div>
@@ -85,7 +85,7 @@ export function LabelManagePage() {
           </div>
         ))}
         {labels.length === 0 && (
-          <div className="col-span-full text-center text-muted py-10">Henuz etiket olusturulmamis</div>
+          <div className="col-span-full text-center text-muted py-10">Henüz etiket oluşturulmamış</div>
         )}
       </div>
     </div>

@@ -7,7 +7,7 @@ import { cn } from 'shared/lib/cn';
 import { Spinner } from 'shared/ui/Spinner';
 import type { Task } from 'features/tasks/types';
 
-const DAYS = ['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz'];
+const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
 function getMonthDays(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
@@ -24,7 +24,7 @@ function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const MONTH_NAMES = ['Ocak', 'Subat', 'Mart', 'Nisan', 'Mayis', 'Haziran', 'Temmuz', 'Agustos', 'Eylul', 'Ekim', 'Kasim', 'Aralik'];
+const MONTH_NAMES = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
 export function CalendarPage() {
   const { data: tasks = [], isLoading } = useTasks();
@@ -58,14 +58,14 @@ export function CalendarPage() {
     else setMonth(month + 1);
   };
 
-  if (isLoading) return <Spinner label="Takvim yukleniyor..." />;
+  if (isLoading) return <Spinner label="Takvim yükleniyor..." />;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-ink">Takvim</h2>
-          <p className="text-sm text-muted mt-1">Gorevlerin son tarihlerini takvimde gor</p>
+          <p className="text-sm text-muted mt-1">Görevlerin son tarihlerini takvimde gör</p>
         </div>
         <div className="flex items-center gap-3">
           <button type="button" onClick={goPrev} className="px-3 py-1.5 bg-navy-800 border border-border/60 rounded-lg text-sm text-ink hover:bg-navy-700 transition-colors">&larr;</button>

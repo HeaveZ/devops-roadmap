@@ -30,11 +30,11 @@ export function TasksPage() {
     };
   }, [tasks]);
 
-  if (isLoading) return <Spinner label="Backend'e baglaniliyor..." />;
+  if (isLoading) return <Spinner label="Backend'e bağlanılıyor..." />;
   if (error) {
     return (
       <div className="p-6 rounded-xl border border-status-red/40 bg-status-red/10 text-status-red text-center">
-        Backend'e baglanamadi. Lutfen tekrar deneyin.
+        Backend'e bağlanılamadı. Lütfen tekrar deneyin.
       </div>
     );
   }
@@ -51,7 +51,7 @@ export function TasksPage() {
             onClick={() => setShowCreate((s) => !s)}
             className="ml-auto shrink-0"
           >
-            {showCreate ? 'Kapat' : '+ Yeni Gorev'}
+            {showCreate ? 'Kapat' : '+ Yeni Görev'}
           </Button>
         )}
       </div>

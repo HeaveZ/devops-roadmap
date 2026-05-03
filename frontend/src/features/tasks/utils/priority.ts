@@ -8,11 +8,12 @@ export interface PriorityInfo {
 }
 
 export const PRIORITIES: readonly PriorityInfo[] = [
-  { key: 'none', label: '-', colorClass: 'bg-priority-none/10 text-priority-none border-priority-none/30', hex: '#7B9BBF' },
-  { key: 'dusuk', label: 'Dusuk', colorClass: 'bg-priority-dusuk/10 text-priority-dusuk border-priority-dusuk/30', hex: '#64B5F6' },
+  { key: 'none', label: 'Belirsiz', colorClass: 'bg-priority-none/10 text-priority-none border-priority-none/30', hex: '#7B9BBF' },
+  { key: 'dusuk', label: 'Düşük', colorClass: 'bg-priority-dusuk/10 text-priority-dusuk border-priority-dusuk/30', hex: '#64B5F6' },
   { key: 'orta', label: 'Orta', colorClass: 'bg-priority-orta/10 text-priority-orta border-priority-orta/30', hex: '#FFD54F' },
-  { key: 'yuksek', label: 'Yuksek', colorClass: 'bg-priority-yuksek/10 text-priority-yuksek border-priority-yuksek/30', hex: '#FF8C00' },
+  { key: 'yuksek', label: 'Yüksek', colorClass: 'bg-priority-yuksek/10 text-priority-yuksek border-priority-yuksek/30', hex: '#FF8C00' },
   { key: 'kritik', label: 'Kritik', colorClass: 'bg-priority-kritik/10 text-priority-kritik border-priority-kritik/30', hex: '#EF5350' },
+  { key: 'acil', label: 'Acil', colorClass: 'bg-priority-acil/10 text-priority-acil border-priority-acil/30', hex: '#FF1744' },
 ];
 
 export function getPriorityInfo(key?: string | null): PriorityInfo {

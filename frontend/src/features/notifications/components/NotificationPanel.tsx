@@ -45,7 +45,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
             onClick={() => markAllRead.mutate()}
             className="text-xs text-brand-bright hover:underline"
           >
-            Tumunu okundu isaretle
+            Tümünü okundu işaretle
           </button>
         )}
       </div>

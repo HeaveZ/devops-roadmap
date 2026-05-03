@@ -38,7 +38,7 @@ export function LoginForm() {
         navigate(redirectTo, { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Giris basarisiz');
+      setError(err instanceof Error ? err.message : 'Giriş başarısız');
     }
   };
 
@@ -48,9 +48,9 @@ export function LoginForm() {
       className="max-w-sm mx-auto mt-10 bg-navy-800 border border-border rounded-xl p-10 animate-popIn"
     >
       <h2 className="text-2xl font-extrabold text-brand-bright text-center mb-2">
-        Giris Yap
+        Giriş Yap
       </h2>
-      <p className="text-center text-muted text-sm mb-6">Hesabinla giris yap</p>
+      <p className="text-center text-muted text-sm mb-6">Hesabınla giriş yap</p>
 
       {error && (
         <div className="mb-4 px-3 py-2 rounded-md bg-status-red/10 border border-status-red/40 text-status-red text-sm text-center">
@@ -68,20 +68,20 @@ export function LoginForm() {
       />
       <Input
         type="password"
-        placeholder="Sifre..."
+        placeholder="Şifre..."
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         className="mb-6"
       />
 
       <Button type="submit" block disabled={loginMutation.isPending}>
-        {loginMutation.isPending ? 'Yukleniyor...' : 'Giris Yap'}
+        {loginMutation.isPending ? 'Yükleniyor...' : 'Giriş Yap'}
       </Button>
 
       <p className="text-center text-xs text-muted mt-5">
-        Hesabin yok mu?{' '}
+        Hesabın yok mu?{' '}
         <Link to={ROUTES.register} className="text-brand-bright hover:underline">
-          Kayit Ol
+          Kayıt Ol
         </Link>
       </p>
     </form>

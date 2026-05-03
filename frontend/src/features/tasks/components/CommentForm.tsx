@@ -34,7 +34,7 @@ export function CommentForm({ onSubmit }: Props) {
         className="flex-1 bg-navy-700 border border-border rounded-md px-3 py-2 text-sm text-ink focus:outline-none focus:border-brand-bright"
       />
       <Button type="button" size="sm" onClick={submit}>
-        Gonder
+        Gönder
       </Button>
     </div>
   );
