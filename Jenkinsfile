@@ -292,6 +292,11 @@ pipeline {
             steps {
                 script {
                     echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
+                    // Pull base images once before parallel builds so Docker
+                    // uses the latest base layer while keeping other layers cached.
+                    node('built-in') {
+                        sh 'docker pull node:20-alpine && docker pull nginx:alpine'
+                    }
                     parallel SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
