@@ -31,7 +31,7 @@ services:
       - kafka_data:/tmp/kraft-combined-logs
 
   auth-server:
-    image: ghcr.io/heavez/auth-server:v2.1
+    image: ghcr.io/heavez/auth-server:${TAG:-v2.1}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -42,14 +42,14 @@ services:
       - email-sender
 
   email-sender:
-    image: ghcr.io/heavez/email-sender:v2.1
+    image: ghcr.io/heavez/email-sender:${TAG:-v2.1}
     restart: unless-stopped
     env_file: .env
     environment:
       PORT: 3002
 
   task-manager:
-    image: ghcr.io/heavez/task-manager:v2.1
+    image: ghcr.io/heavez/task-manager:${TAG:-v2.1}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -62,7 +62,7 @@ services:
       - kafka
 
   audit-logger:
-    image: ghcr.io/heavez/audit-logger:v2.1
+    image: ghcr.io/heavez/audit-logger:${TAG:-v2.1}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -72,13 +72,13 @@ services:
       - kafka
 
   frontend:
-    image: ghcr.io/heavez/frontend:v2.1
+    image: ghcr.io/heavez/frontend:${TAG:-v2.1}
     restart: unless-stopped
     depends_on:
       - task-manager
 
   nginx:
-    image: ghcr.io/heavez/nginx:v2.1
+    image: ghcr.io/heavez/nginx:${TAG:-v2.1}
     restart: unless-stopped
     ports:
       - "80:80"

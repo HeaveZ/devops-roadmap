@@ -414,21 +414,25 @@ pipeline {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-deploy-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
-                            echo "[START] Production deploy (docker compose up -d)"
+                            echo "[START] Production deploy — TAG=${IMMUTABLE_TAG} (immutable)"
                             withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
-                                sh '''
+                                sh """
                                     set -e
                                     # If a previous build failed, .env may remain in the workspace
                                     # with a different uid; clean first, then create.
                                     # Run cleanup in all cases (trap).
                                     trap 'rm -f .env' EXIT
                                     rm -f .env
-                                    install -m 600 "$ENV_FILE" .env
+                                    install -m 600 "\$ENV_FILE" .env
+                                    # Inject TAG env var into compose — each build uses a different
+                                    # immutable tag, changing image IDs so compose recreates containers.
+                                    # --pull always makes GHCR the source of truth, bypassing local cache.
+                                    export TAG=${IMMUTABLE_TAG}
                                     docker compose -f docker-compose.prod.yml pull
-                                    docker compose -f docker-compose.prod.yml up -d
-                                '''
+                                    docker compose -f docker-compose.prod.yml up -d --pull always
+                                """
                             }
-                            echo "[DONE] Production deploy completed"
+                            echo "[DONE] Production deploy completed (TAG=${IMMUTABLE_TAG})"
                         }
                     }
                 }
