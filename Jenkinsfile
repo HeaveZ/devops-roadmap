@@ -93,6 +93,12 @@ pipeline {
         // npm ci paralel olarak çalışır. Eski sıralı for-loop yerine
         // collectEntries ile her servis paralel branch.
         // ------------------------------------------------------
+        // ------------------------------------------------------
+        // 2) INSTALL DEPENDENCIES — parallel (5 services)
+        // Each service runs npm ci in its own shared workspace.
+        // Lint and Audit stages reuse the same ws() path so
+        // node_modules persists on disk — no duplicate npm ci.
+        // ------------------------------------------------------
         stage('Install Dependencies') {
             agent none
             steps {
@@ -101,13 +107,13 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                ws("workspace/${env.JOB_NAME}-install-${svc}-${env.BUILD_NUMBER}") {
+                                ws("workspace/${env.JOB_NAME}-quality-${svc}-${env.BUILD_NUMBER}") {
                                     unstash 'workspace'
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
-                                            echo "[BAŞLA] ${svc} npm ci"
+                                            echo "[START] ${svc} npm ci"
                                             sh 'npm ci'
-                                            echo "[BİTİŞ] ${svc}"
+                                            echo "[DONE] ${svc}"
                                         }
                                     }
                                 }
@@ -119,10 +125,9 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 3) LINT & COMPILE CHECK — paralel (5 servis)
-        // Stash mantığında her parallel branch fresh workspace alır
-        // (node_modules YOK), bu yüzden lint öncesi npm ci tekrar çalışır.
-        // 5 servis paralel olduğu için extra npm ci wall-clock'a etkisiz.
+        // 3) LINT & COMPILE CHECK — parallel (5 services)
+        // Reuses the same ws() path from Install stage so
+        // node_modules is already present — no npm ci needed.
         // ------------------------------------------------------
         stage('Lint & Compile Check') {
             agent none
@@ -132,14 +137,12 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                ws("workspace/${env.JOB_NAME}-lint-${svc}-${env.BUILD_NUMBER}") {
-                                    unstash 'workspace'
+                                ws("workspace/${env.JOB_NAME}-quality-${svc}-${env.BUILD_NUMBER}") {
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
-                                            echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
-                                            sh 'npm ci'
-                                            sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
-                                            echo "[BİTİŞ] ${svc} lint/syntax OK"
+                                            echo "[START] ${svc} lint and syntax check"
+                                            sh 'npm run lint || echo "lint script not found — skipped"'
+                                            echo "[DONE] ${svc} lint/syntax OK"
                                         }
                                     }
                                 }
@@ -151,9 +154,9 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 4) DEPENDENCY SCAN — paralel (5 servis)
-        // npm audit --audit-level=high → high+ CVE varsa fail.
-        // Lint stage gibi, fresh workspace nedeniyle npm ci tekrar.
+        // 4) DEPENDENCY SCAN — parallel (5 services)
+        // npm audit --audit-level=high → fails if high+ CVEs exist.
+        // Reuses the same ws() path — node_modules already installed.
         // ------------------------------------------------------
         stage('Dependency Scan') {
             agent none
@@ -163,14 +166,12 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                ws("workspace/${env.JOB_NAME}-audit-${svc}-${env.BUILD_NUMBER}") {
-                                    unstash 'workspace'
+                                ws("workspace/${env.JOB_NAME}-quality-${svc}-${env.BUILD_NUMBER}") {
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
-                                            echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
-                                            sh 'npm ci'
+                                            echo "[START] ${svc} dependency scan (npm audit, high+)"
                                             sh 'npm audit --audit-level=high'
-                                            echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                                            echo "[DONE] ${svc} dependency scan clean"
                                         }
                                     }
                                 }
