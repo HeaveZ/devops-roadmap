@@ -1,67 +1,67 @@
 // ============================================================
 //  Jenkinsfile — Taskly multi-service CI/CD pipeline
 // ------------------------------------------------------------
-//  6 mikroservis için tek pipeline:
+//  Single pipeline for 6 microservices:
 //    audit-logger, auth-server, task-manager, email-sender, frontend, nginx
 //
-//  Akış:
-//    - Her branch (PR dahil): Checkout → Install → Lint → Audit → Sonar → Build
-//    - Sadece 'master' branch: Push → Deploy
+//  Flow:
+//    - Every branch (incl. PRs): Checkout → Install → Lint → Audit → Sonar → Build
+//    - Master branch only: Push → Deploy
 //
-//  Paralelleştirme: Install/Lint/Audit/Build/Push stage'leri
-//    NODE_SERVICES (veya SERVICES).collectEntries pattern ile paralel
-//    çalışır. Her parallel branch: node('built-in') → unstash → iş.
-//    Built-in executor sayısı doğal RAM koruması yapar.
+//  Parallelization: Install/Lint/Audit/Build/Push stages use
+//    NODE_SERVICES (or SERVICES).collectEntries pattern for parallel
+//    execution. Each parallel branch: node('built-in') → unstash → work.
+//    Built-in executor count provides natural RAM protection.
 //
-//  Stash stratejisi: skipDefaultCheckout(true) → her stage'de auto-fetch
-//    yok. Checkout stage'i workspace'i stash eder, diğer stage'ler unstash.
+//  Stash strategy: skipDefaultCheckout(true) → no auto-fetch per stage.
+//    Checkout stage stashes the workspace; other stages unstash it.
 //
-//  Etiketleme stratejisi (çift tag, her servis için):
+//  Tagging strategy (dual tag per service):
 //    - Master: :v2.1-${BUILD_NUMBER} (immutable) + :v2.1 (moving pointer, compose pull)
-//    - PR:     :pr-${CHANGE_ID}-${BUILD_NUMBER} + :pr-${CHANGE_ID} (lokal, push edilmez)
+//    - PR:     :pr-${CHANGE_ID}-${BUILD_NUMBER} + :pr-${CHANGE_ID} (local, not pushed)
 //
 //  Multi-agent pattern:
-//    - Quality stages (Install/Lint/Audit):  node:20-alpine (paralel)
+//    - Quality stages (Install/Lint/Audit):  node:20-alpine (parallel)
 //    - SonarCloud:                           sonarsource/sonar-scanner-cli
 //    - Build / Push / Deploy:                built-in (host docker daemon)
 // ============================================================
 
-// PR build helper — Multibranch Pipeline'da PR build'lerde Jenkins
-// otomatik olarak CHANGE_ID env değişkenini set eder (PR numarası).
-// Branch build'lerde (master dahil) null'dur.
+// PR build helper — In Multibranch Pipeline, Jenkins automatically sets
+// the CHANGE_ID env variable (PR number) for PR builds.
+// It is null for branch builds (including master).
 def isPR() {
     return env.CHANGE_ID != null
 }
 
 pipeline {
-    // Top-level agent yok; her stage kendi container'ında veya paralel branch'inde.
+    // No top-level agent; each stage runs in its own container or parallel branch.
     agent none
 
-    // Pipeline genelinde kullanılacak değişkenler.
+    // Pipeline-wide variables.
     environment {
-        // Node.js servisleri (npm ci/lint/audit stage'leri için)
+        // Node.js services (for npm ci/lint/audit stages)
         NODE_SERVICES  = 'audit-logger,auth-server,task-manager,email-sender,frontend'
-        // Build & push edilen tüm image'lar (nginx reverse-proxy de dahil)
+        // All images to build & push (including nginx reverse-proxy)
         SERVICES       = 'audit-logger,auth-server,task-manager,email-sender,frontend,nginx'
         GHCR_REGISTRY  = 'ghcr.io'
         GHCR_NAMESPACE = 'heavez'
         VERSION        = 'v2.1'
-        // BUILD_NUMBER Jenkins tarafından otomatik atanır.
+        // BUILD_NUMBER is automatically assigned by Jenkins.
         IMMUTABLE_TAG  = "${VERSION}-${BUILD_NUMBER}"
     }
 
     options {
-        // Log satırlarına zaman damgası ekler — debug için çok faydalı.
+        // Add timestamps to log lines — very useful for debugging.
         timestamps()
-        // Aynı job'un iki build'inin paralel çalışmasını engeller.
+        // Prevent two builds of the same job from running in parallel.
         disableConcurrentBuilds()
-        // 30 dakikada bitmezse build'i sonlandır.
+        // Abort the build if it doesn't finish within 30 minutes.
         timeout(time: 30, unit: 'MINUTES')
-        // Her stage'de implicit checkout scm ÇALIŞMASIN — Checkout stage'i
-        // bir kez yapar ve stash eder; diğer stage'ler unstash ile alır.
+        // Disable implicit checkout scm per stage — Checkout stage does it
+        // once and stashes; other stages retrieve via unstash.
         skipDefaultCheckout(true)
-        // Build retention — disk şişmesini engelle.
-        // Workspace cleanup post.always'de yapılıyor; bu da Jenkins meta/log birikimini engeller.
+        // Build retention — prevent disk bloat.
+        // Workspace cleanup is done in post.always; this prevents Jenkins meta/log accumulation.
         buildDiscarder(logRotator(
             numToKeepStr: '10',
             artifactNumToKeepStr: '5',
@@ -73,25 +73,25 @@ pipeline {
 
         // ------------------------------------------------------
         // 1) CHECKOUT — built-in
-        // Git repoyu Jenkins workspace'ine indirir, sonra tüm dosyaları
-        // 'workspace' adlı stash'e koyar. Diğer stage'ler unstash ile alır.
+        // Clones the git repo into the Jenkins workspace, then stashes all
+        // files under 'workspace'. Other stages retrieve via unstash.
         // ------------------------------------------------------
         stage('Checkout') {
             agent { label 'built-in' }
             steps {
                 echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
-                echo "[BAŞLA] Kaynak kod checkout ediliyor (branch=${env.BRANCH_NAME ?: 'n/a'})"
+                echo "[START] Checking out source code (branch=${env.BRANCH_NAME ?: 'n/a'})"
                 checkout scm
                 stash includes: '**', name: 'workspace'
-                echo "[BİTİŞ] Checkout + workspace stash tamamlandı"
+                echo "[DONE] Checkout + workspace stash completed"
             }
         }
 
         // ------------------------------------------------------
-        // 2) INSTALL DEPENDENCIES — paralel (5 servis)
-        // Her servis kendi node'unda + node:20-alpine container'ında
-        // npm ci paralel olarak çalışır. Eski sıralı for-loop yerine
-        // collectEntries ile her servis paralel branch.
+        // 2) INSTALL DEPENDENCIES — parallel (5 services)
+        // Each service runs npm ci in parallel on its own node inside a
+        // node:20-alpine container. Uses collectEntries for parallel
+        // branches instead of the old sequential for-loop.
         // ------------------------------------------------------
         stage('Install Dependencies') {
             agent none
@@ -105,9 +105,9 @@ pipeline {
                                     unstash 'workspace'
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
-                                            echo "[BAŞLA] ${svc} npm ci"
+                                            echo "[START] ${svc} npm ci"
                                             sh 'npm ci'
-                                            echo "[BİTİŞ] ${svc}"
+                                            echo "[DONE] ${svc}"
                                         }
                                     }
                                 }
@@ -119,10 +119,11 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 3) LINT & COMPILE CHECK — paralel (5 servis)
-        // Stash mantığında her parallel branch fresh workspace alır
-        // (node_modules YOK), bu yüzden lint öncesi npm ci tekrar çalışır.
-        // 5 servis paralel olduğu için extra npm ci wall-clock'a etkisiz.
+        // 3) LINT & COMPILE CHECK — parallel (5 services)
+        // Due to stash logic, each parallel branch gets a fresh workspace
+        // (no node_modules), so npm ci runs again before lint.
+        // Since all 5 services run in parallel, the extra npm ci has
+        // negligible impact on wall-clock time.
         // ------------------------------------------------------
         stage('Lint & Compile Check') {
             agent none
@@ -136,10 +137,10 @@ pipeline {
                                     unstash 'workspace'
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
-                                            echo "[BAŞLA] ${svc} lint ve syntax kontrolü"
+                                            echo "[START] ${svc} lint and syntax check"
                                             sh 'npm ci'
-                                            sh 'npm run lint || echo "lint scripti bulunamadı — atlandı"'
-                                            echo "[BİTİŞ] ${svc} lint/syntax OK"
+                                            sh 'npm run lint || echo "lint script not found — skipped"'
+                                            echo "[DONE] ${svc} lint/syntax OK"
                                         }
                                     }
                                 }
@@ -151,9 +152,9 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 4) DEPENDENCY SCAN — paralel (5 servis)
-        // npm audit --audit-level=high → high+ CVE varsa fail.
-        // Lint stage gibi, fresh workspace nedeniyle npm ci tekrar.
+        // 4) DEPENDENCY SCAN — parallel (5 services)
+        // npm audit --audit-level=high → fails if high+ CVEs exist.
+        // Like the Lint stage, npm ci runs again due to fresh workspace.
         // ------------------------------------------------------
         stage('Dependency Scan') {
             agent none
@@ -167,10 +168,10 @@ pipeline {
                                     unstash 'workspace'
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
-                                            echo "[BAŞLA] ${svc} bağımlılık taraması (npm audit, high+)"
+                                            echo "[START] ${svc} dependency scan (npm audit, high+)"
                                             sh 'npm ci'
                                             sh 'npm audit --audit-level=high'
-                                            echo "[BİTİŞ] ${svc} bağımlılık taraması temiz"
+                                            echo "[DONE] ${svc} dependency scan clean"
                                         }
                                     }
                                 }
@@ -183,10 +184,10 @@ pipeline {
 
         // ------------------------------------------------------
         // 4.5) GITLEAKS SECRET SCAN — zricethezav/gitleaks
-        // Working tree'de sızdırılmış secret arar (AWS key, JWT, API token).
-        // Bir tane bulursa exit 1 → pipeline patlar (default davranış).
-        // --no-git: workspace stash'ten geliyor, .git history yok zaten.
-        // --redact: bulunan secret log'da maskelenir.
+        // Scans the working tree for leaked secrets (AWS keys, JWT, API tokens).
+        // If any are found, exit 1 → pipeline fails (default behavior).
+        // --no-git: workspace comes from stash, no .git history present.
+        // --redact: masks found secrets in the log output.
         // ------------------------------------------------------
         stage('Gitleaks Secret Scan') {
             agent none
@@ -196,7 +197,7 @@ pipeline {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-gitleaks-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
-                            echo "[BAŞLA] Gitleaks secret scan"
+                            echo "[START] Gitleaks secret scan"
                             sh '''
                                 docker run --rm \
                                     -v "$(pwd):/repo" \
@@ -204,7 +205,7 @@ pipeline {
                                     zricethezav/gitleaks:latest \
                                     detect --source=/repo --verbose --redact --no-git
                             '''
-                            echo "[BİTİŞ] Gitleaks scan temiz"
+                            echo "[DONE] Gitleaks scan clean"
                         }
                     }
                 }
@@ -212,10 +213,10 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 5) SONARCLOUD ANALYSIS — sonar-scanner-cli (tek scan, 5 servis kaynak)
-        // SonarCloud SaaS'a statik kod analizi gönderir.
-        // Token Jenkins'te 'sonarcloud-token' credential'ında saklı.
-        // sonar.sources tüm 5 servisin kaynak dizinlerini kapsar.
+        // 5) SONARCLOUD ANALYSIS — sonar-scanner-cli (single scan, 5 service sources)
+        // Sends static code analysis to SonarCloud SaaS.
+        // Token is stored in Jenkins 'sonarcloud-token' credential.
+        // sonar.sources covers the source directories of all 5 services.
         // ------------------------------------------------------
         stage('SonarCloud Analysis') {
             agent none
@@ -225,7 +226,7 @@ pipeline {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-sonar-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
-                            echo "[BAŞLA] SonarCloud analizi gönderiliyor (5 servis kaynak)"
+                            echo "[START] Sending SonarCloud analysis (5 service sources)"
                             sh 'rm -rf .scannerwork || true'
                             withSonarQubeEnv('SonarCloud') {
                                 docker.image('sonarsource/sonar-scanner-cli:latest').inside('-u root --entrypoint=""') {
@@ -238,7 +239,7 @@ pipeline {
                                     '''
                                 }
                             }
-                            echo "[BİTİŞ] SonarCloud raporu gönderildi"
+                            echo "[DONE] SonarCloud report submitted"
                         }
                     }
                 }
@@ -247,10 +248,10 @@ pipeline {
 
         // ------------------------------------------------------
         // 5.5) TRIVY FILESYSTEM SCAN — aquasec/trivy
-        // Kod + bağımlılık + Dockerfile misconfig + secret tarar.
-        // CRITICAL/HIGH bulunursa exit 1 → pipeline patlar (--exit-code 1).
-        // trivy-cache volume → vuln DB ikinci build'de cache hit (ilk
-        // build ~30s yavaş, sonrakiler hızlı).
+        // Scans code + dependencies + Dockerfile misconfigs + secrets.
+        // If CRITICAL/HIGH findings exist, exit 1 → pipeline fails (--exit-code 1).
+        // trivy-cache volume → vuln DB cache hit on subsequent builds
+        // (first build ~30s slower, subsequent ones are fast).
         // ------------------------------------------------------
         stage('Trivy Filesystem Scan') {
             agent none
@@ -260,7 +261,7 @@ pipeline {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-trivy-fs-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
-                            echo "[BAŞLA] Trivy filesystem scan (CRITICAL+HIGH ile patlat)"
+                            echo "[START] Trivy filesystem scan (fail on CRITICAL+HIGH)"
                             sh '''
                                 docker run --rm \
                                     -v "$(pwd):/repo" \
@@ -272,7 +273,7 @@ pipeline {
                                     --no-progress \
                                     --scanners vuln,misconfig,secret
                             '''
-                            echo "[BİTİŞ] Trivy FS scan temiz"
+                            echo "[DONE] Trivy FS scan clean"
                         }
                     }
                 }
@@ -280,11 +281,11 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 6) DOCKER BUILD (master + PR) — paralel (6 servis)
-        // SERVICES = NODE_SERVICES + nginx. Her servis kendi node'unda
-        // build edilir, executor sayısı doğal sınır.
-        // PR build'lerde tag pattern: pr-${CHANGE_ID}-${BUILD_NUMBER} +
-        // pr-${CHANGE_ID} (lokal, push edilmez — Push stage master only).
+        // 6) DOCKER BUILD (master + PR) — parallel (6 services)
+        // SERVICES = NODE_SERVICES + nginx. Each service builds on its
+        // own node; executor count is the natural concurrency limit.
+        // PR builds use tag pattern: pr-${CHANGE_ID}-${BUILD_NUMBER} +
+        // pr-${CHANGE_ID} (local only, not pushed — Push stage is master only).
         // ------------------------------------------------------
         stage('Docker Build') {
             agent none
@@ -299,7 +300,7 @@ pipeline {
                                     def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}"
                                     def buildTag  = isPR() ? "pr-${env.CHANGE_ID}-${env.BUILD_NUMBER}" : "${IMMUTABLE_TAG}"
                                     def stableTag = isPR() ? "pr-${env.CHANGE_ID}"                    : "${VERSION}"
-                                    echo "[BAŞLA] ${svc} docker build — ${imageName}:${buildTag} + :${stableTag}"
+                                    echo "[START] ${svc} docker build — ${imageName}:${buildTag} + :${stableTag}"
                                     dir(svc) {
                                         sh """
                                             docker build \
@@ -309,7 +310,7 @@ pipeline {
                                         """
                                     }
                                     sh "docker images | grep ${svc} || true"
-                                    echo "[BİTİŞ] ${svc} image build edildi"
+                                    echo "[DONE] ${svc} image built"
                                 }
                             }
                         }]
@@ -319,13 +320,13 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 6.5) TRIVY IMAGE SCAN — paralel (6 imaj)
-        // Build edilen lokal image'ları (henüz push edilmedi) tarar.
-        // CRITICAL/HIGH varsa exit 1 → push olmaz, pipeline patlar.
-        // --ignore-unfixed: düzeltmesi olmayan vuln'lar atlanır
-        // (false-positive azaltır — base image patch yoksa beklemek gerek).
-        // docker.sock mount → trivy host daemon'daki imajları görür.
-        // Tag pattern Build stage ile aynı (PR-aware: pr-<ID> | v2.1).
+        // 6.5) TRIVY IMAGE SCAN — parallel (6 images)
+        // Scans locally built images (not yet pushed).
+        // If CRITICAL/HIGH found, exit 1 → no push, pipeline fails.
+        // --ignore-unfixed: skips vulns with no available fix
+        // (reduces false positives — nothing to do if base image has no patch).
+        // docker.sock mount → trivy can see images on the host daemon.
+        // Tag pattern matches the Build stage (PR-aware: pr-<ID> | v2.1).
         // ------------------------------------------------------
         stage('Trivy Image Scan') {
             agent none
@@ -338,7 +339,7 @@ pipeline {
                                 ws("workspace/${env.JOB_NAME}-trivy-img-${svc}-${env.BUILD_NUMBER}") {
                                     def stableTag = isPR() ? "pr-${env.CHANGE_ID}" : "${VERSION}"
                                     def imageName = "${GHCR_REGISTRY}/${GHCR_NAMESPACE}/${svc}:${stableTag}"
-                                    echo "[BAŞLA] Trivy image scan: ${imageName}"
+                                    echo "[START] Trivy image scan: ${imageName}"
                                     sh """
                                         docker run --rm \
                                             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -350,7 +351,7 @@ pipeline {
                                             --no-progress \
                                             --ignore-unfixed
                                     """
-                                    echo "[BİTİŞ] ${svc} image scan temiz"
+                                    echo "[DONE] ${svc} image scan clean"
                                 }
                             }
                         }]
@@ -360,10 +361,10 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 7) PUSH TO GHCR (sadece master) — paralel (6 servis)
-        // ÖNEMLİ: docker login parallel DIŞINDA tek seferlik.
-        // Login docker daemon'a credential cache eder; sonra tüm
-        // parallel push branches aynı login'i kullanır.
+        // 7) PUSH TO GHCR (master only) — parallel (6 services)
+        // IMPORTANT: docker login runs once OUTSIDE the parallel block.
+        // Login caches credentials in the docker daemon; all parallel
+        // push branches then share the same login session.
         // ------------------------------------------------------
         stage('Push to GHCR') {
             agent none
@@ -371,7 +372,7 @@ pipeline {
             steps {
                 script {
                     echo "Build context: ${isPR() ? 'PR #' + env.CHANGE_ID : 'master'}"
-                    // Önce tek seferlik login
+                    // One-time login first
                     node('built-in') {
                         withCredentials([usernamePassword(
                             credentialsId: 'github-ghcr',
@@ -381,7 +382,7 @@ pipeline {
                             sh 'echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin'
                         }
                     }
-                    // Sonra paralel push
+                    // Then parallel push
                     parallel SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
@@ -399,10 +400,10 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 8) DEPLOY (sadece master) — built-in (tek compose komutu)
-        // docker compose ile tüm servisleri pull edip yeniden başlatır.
-        // .env dosyası Jenkins 'taskly-env-prod' Secret file'dan gelir.
-        // Compose paralelleştirilmez — tek seferde tüm servisi yönetir.
+        // 8) DEPLOY (master only) — built-in (single compose command)
+        // Pulls and restarts all services via docker compose.
+        // .env file comes from Jenkins 'taskly-env-prod' Secret file.
+        // Compose is not parallelized — it manages all services at once.
         // ------------------------------------------------------
         stage('Deploy') {
             agent none
@@ -413,25 +414,25 @@ pipeline {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-deploy-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
-                            echo "[BAŞLA] Production deploy — TAG=${IMMUTABLE_TAG} (immutable)"
+                            echo "[START] Production deploy — TAG=${IMMUTABLE_TAG} (immutable)"
                             withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
                                 sh """
                                     set -e
-                                    # Onceki build basarisiz biterse .env workspace'te kalmis
-                                    # ve farkli uid'li olabilir; once temizle, sonra olusturul.
-                                    # Cleanup'i her durumda calistir (trap).
+                                    # If a previous build failed, .env may remain in the workspace
+                                    # with a different uid; clean first, then create.
+                                    # Run cleanup in all cases (trap).
                                     trap 'rm -f .env' EXIT
                                     rm -f .env
                                     install -m 600 "\$ENV_FILE" .env
-                                    # TAG env var compose'a inject — her build farkli immutable tag,
-                                    # image ID degisir, compose container'lari recreate eder.
-                                    # --pull always ile GHCR source-of-truth, lokal cache bypass.
+                                    # Inject TAG env var into compose — each build uses a different
+                                    # immutable tag, changing image IDs so compose recreates containers.
+                                    # --pull always makes GHCR the source of truth, bypassing local cache.
                                     export TAG=${IMMUTABLE_TAG}
                                     docker compose -f docker-compose.prod.yml pull
                                     docker compose -f docker-compose.prod.yml up -d --pull always
                                 """
                             }
-                            echo "[BİTİŞ] Production deploy tamamlandı (TAG=${IMMUTABLE_TAG})"
+                            echo "[DONE] Production deploy completed (TAG=${IMMUTABLE_TAG})"
                         }
                     }
                 }
@@ -439,10 +440,10 @@ pipeline {
         }
 
         // ------------------------------------------------------
-        // 9) SMOKE TEST (sadece master) — built-in
-        // Deploy sonrası 6 servisin /health endpoint'ini compose
-        // network içinden, son olarak public uçtan probe eder.
-        // 15 sn warm-up; herhangi biri patlarsa stage FAIL.
+        // 9) SMOKE TEST (master only) — built-in
+        // After deploy, probes the /health endpoint of 6 services from
+        // inside the compose network, then from the public endpoint.
+        // 15s warm-up; if any probe fails, the stage fails.
         // ------------------------------------------------------
         stage('Smoke Test') {
             agent none
@@ -451,7 +452,7 @@ pipeline {
                 script {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-smoke-${env.BUILD_NUMBER}") {
-                            echo "[BAŞLA] Smoke test — post-deploy health probe"
+                            echo "[START] Smoke test — post-deploy health probe"
                             sleep 15
                             sh '''
                                 set -e
@@ -470,7 +471,7 @@ pipeline {
                                 curl -fsS --max-time 10 https://heavezz.uk/health
                                 echo ""
                             '''
-                            echo "[BİTİŞ] Smoke test başarılı — 5 internal + 1 public uç sağlıklı"
+                            echo "[DONE] Smoke test passed — 5 internal + 1 public endpoint healthy"
                         }
                     }
                 }
@@ -480,23 +481,23 @@ pipeline {
 
     // ----------------------------------------------------------
     // POST-BUILD
-    // agent none olduğu için sh çağrısı için node bloğu lazım.
-    // Her durumda GHCR'dan logout, sonuca göre bildirim.
+    // Since agent is none, a node block is needed for sh calls.
+    // Always logout from GHCR; send notifications based on result.
     // ----------------------------------------------------------
     post {
         always {
-            // Mevcut: Docker logout (DOKUNULMADI)
+            // Docker logout (always runs)
             node('built-in') {
                 sh 'docker logout ghcr.io || true'
             }
-            // YENİ: Pipeline TAMAMEN bittikten sonra workspace cleanup.
-            // Bu build'in oluşturduğu paralel ws() dizinleri ARTIK kullanılmıyor.
+            // Workspace cleanup after pipeline is fully complete.
+            // Parallel ws() directories created by this build are no longer needed.
             // Pattern: workspace/devops/master-{stage}-{svc}-{BUILD_NUMBER}
-            // Cleanup hatası pipeline'ı patlatmasın diye try/catch içinde.
+            // Wrapped in try/catch so cleanup errors don't fail the pipeline.
             script {
                 try {
                     node('built-in') {
-                        echo "[CLEANUP] Build #${env.BUILD_NUMBER} workspace temizliği başlıyor"
+                        echo "[CLEANUP] Build #${env.BUILD_NUMBER} workspace cleanup starting"
                         sh '''
                             BEFORE=$(df -h / | tail -1 | awk '{print $5}')
                             find /var/jenkins_home/workspace/devops/ \\
@@ -505,21 +506,21 @@ pipeline {
                                 \\( -name "*-${BUILD_NUMBER}" -o -name "*-${BUILD_NUMBER}@tmp" \\) \\
                                 -exec rm -rf {} + 2>/dev/null || true
                             AFTER=$(df -h / | tail -1 | awk '{print $5}')
-                            echo "[CLEANUP] Disk doluluk: ${BEFORE} -> ${AFTER}"
-                            echo "[CLEANUP] Build #${BUILD_NUMBER} workspace dizinleri silindi"
+                            echo "[CLEANUP] Disk usage: ${BEFORE} -> ${AFTER}"
+                            echo "[CLEANUP] Build #${BUILD_NUMBER} workspace directories removed"
                         '''
                     }
                 } catch (e) {
-                    // Cleanup hatası pipeline'ı patlatmasın
-                    echo "Workspace cleanup hatası (kritik değil): ${e.message}"
+                    // Cleanup error should not fail the pipeline
+                    echo "Workspace cleanup error (non-critical): ${e.message}"
                 }
             }
         }
         failure {
-            echo "Pipeline BAŞARISIZ: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            echo "Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
         success {
-            echo "Pipeline BAŞARILI: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            echo "Pipeline SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
     }
 }
