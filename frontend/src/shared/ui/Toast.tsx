@@ -14,11 +14,12 @@ interface ToastItem {
   id: number;
   kind: ToastKind;
   message: string;
+  onUndo?: () => void;
 }
 
 interface ToastContextValue {
-  show: (message: string, kind?: ToastKind) => void;
-  success: (message: string) => void;
+  show: (message: string, kind?: ToastKind, onUndo?: () => void) => void;
+  success: (message: string, onUndo?: () => void) => void;
   error: (message: string) => void;
   info: (message: string) => void;
 }
@@ -33,10 +34,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback(
-    (message: string, kind: ToastKind = 'info') => {
+    (message: string, kind: ToastKind = 'info', onUndo?: () => void) => {
       const id = Date.now() + crypto.getRandomValues(new Uint32Array(1))[0];
-      setItems((prev) => [...prev, { id, kind, message }]);
-      window.setTimeout(() => dismiss(id), 4000);
+      setItems((prev) => [...prev, { id, kind, message, onUndo }]);
+      window.setTimeout(() => dismiss(id), onUndo ? 6000 : 4000);
     },
     [dismiss],
   );
@@ -44,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ToastContextValue>(
     () => ({
       show,
-      success: (m) => show(m, 'success'),
+      success: (m, onUndo) => show(m, 'success', onUndo),
       error: (m) => show(m, 'error'),
       info: (m) => show(m, 'info'),
     }),
@@ -67,13 +68,27 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               t.kind === 'info' && 'bg-navy-800/90 border-border/60 text-ink',
             )}
           >
-            <button
-              type="button"
-              onClick={() => dismiss(t.id)}
-              className="w-full text-left text-inherit font-medium"
-            >
-              {t.message}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => dismiss(t.id)}
+                className="flex-1 text-left text-inherit font-medium"
+              >
+                {t.message}
+              </button>
+              {t.onUndo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    t.onUndo?.();
+                    dismiss(t.id);
+                  }}
+                  className="shrink-0 px-2.5 py-1 text-xs font-bold rounded-md bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  Geri Al
+                </button>
+              )}
+            </div>
           </output>
         ))}
       </div>

@@ -9,6 +9,7 @@ import { useAddTaskLabel, useRemoveTaskLabel } from 'features/tasks/hooks/useLab
 import { SubtaskList } from 'features/tasks/components/SubtaskList';
 import { CommentList } from 'features/tasks/components/CommentList';
 import { getPriorityInfo, PRIORITIES } from 'features/tasks/utils/priority';
+import { getTaskCode, getSlaStatus, getSlaLabel } from 'features/tasks/utils/sla';
 import { useToast } from 'shared/ui/Toast';
 import { Spinner } from 'shared/ui/Spinner';
 import { Button } from 'shared/ui/Button';
@@ -117,15 +118,25 @@ export function TaskDetailPage() {
       );
     }
     if (isAuthenticated) {
+      const sla = getSlaStatus(task);
       return (
-        <button
-          type="button"
-          onClick={() => setEditingTitle(true)}
-          className="text-2xl font-extrabold text-ink cursor-pointer hover:text-brand-bright transition-colors text-left"
-          title="Düzenlemek için tıklayın"
-        >
-          {task.title ?? task.name ?? 'Başlıksız Görev'}
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-mono text-brand-bright/60 bg-brand/10 px-2 py-1 rounded">{getTaskCode(task)}</span>
+          <button
+            type="button"
+            onClick={() => setEditingTitle(true)}
+            className="text-2xl font-extrabold text-ink cursor-pointer hover:text-brand-bright transition-colors text-left"
+            title="Duzenlemek icin tiklayin"
+          >
+            {task.title ?? task.name ?? 'Basliksiz Gorev'}
+          </button>
+          {sla === 'overdue' && (
+            <span className="text-[10px] font-bold px-2 py-1 rounded bg-status-red/15 text-status-red border border-status-red/30">GECIKTI</span>
+          )}
+          {sla === 'warning' && (
+            <span className="text-[10px] font-bold px-2 py-1 rounded bg-status-amber/15 text-status-amber border border-status-amber/30">SLA</span>
+          )}
+        </div>
       );
     }
     return (
