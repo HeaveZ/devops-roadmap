@@ -19,7 +19,7 @@ export function TaskGroup({ section, tasks }: Props) {
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted">
           {section}
         </h3>
-        <span className="text-[10px] text-muted/70">
+        <span className="text-[11px] text-muted/70">
           {done}/{total}
         </span>
         <div className="flex-1 h-px bg-white/5" />
