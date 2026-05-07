@@ -112,7 +112,7 @@ export function TaskItem({ task }: Props) {
         </button>
 
         {subtasks.length > 0 && (
-          <span className="text-[10px] text-muted px-2 py-0.5 rounded-full bg-white/5">
+          <span className="text-[11px] text-muted px-2 py-0.5 rounded-full bg-white/5">
             {subDone}/{subtasks.length}
           </span>
         )}
@@ -131,7 +131,7 @@ export function TaskItem({ task }: Props) {
             value={currentStatus}
             onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
             className={cn(
-              'px-2 py-1 text-[10px] font-medium rounded-md border border-border/60 bg-navy-900/80 focus:outline-none focus:border-brand/50 cursor-pointer appearance-none',
+              'px-2 py-1 text-[11px] font-medium rounded-md border border-border/60 bg-navy-900/80 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30 cursor-pointer appearance-none',
               statusInfo.color,
             )}
             title="Durum değiştir"
@@ -155,7 +155,7 @@ export function TaskItem({ task }: Props) {
         >
           💬
           {commentCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-brand text-ink text-[9px] px-1 rounded-full">
+            <span className="absolute -top-1 -right-1 bg-brand text-ink text-[10px] px-1 rounded-full">
               {commentCount}
             </span>
           )}
@@ -180,7 +180,7 @@ export function TaskItem({ task }: Props) {
           <button
             type="button"
             onClick={() => setShowDeleteConfirm(true)}
-            className="w-8 h-8 rounded-md border border-transparent flex items-center justify-center text-muted/40 hover:text-status-red hover:border-status-red/30 hover:bg-status-red/10 transition-colors opacity-0 group-hover:opacity-100"
+            className="w-8 h-8 rounded-md border border-transparent flex items-center justify-center text-muted/60 hover:text-status-red hover:border-status-red/30 hover:bg-status-red/10 transition-colors opacity-0 group-hover:opacity-100"
             title="Görevi sil"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

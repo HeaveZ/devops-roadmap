@@ -99,8 +99,8 @@ export function Sidebar() {
 
       {/* Keyboard shortcut hint */}
       <div className="px-4 py-3 border-t border-border/40">
-        <div className="flex items-center justify-center gap-2 text-[10px] text-muted/40">
-          <kbd className="px-1.5 py-0.5 bg-navy-800 border border-border/40 rounded text-[9px] font-mono">Ctrl+K</kbd>
+        <div className="flex items-center justify-center gap-2 text-[11px] text-muted/70">
+          <kbd className="px-1.5 py-0.5 bg-navy-800 border border-border/40 rounded text-[10px] font-mono">Ctrl+K</kbd>
           <span>Hızlı arama</span>
         </div>
       </div>
