@@ -83,7 +83,7 @@ function Pill({
   return (
     <div className="flex-1 rounded-xl border border-border bg-navy-800 px-4 py-3 text-center">
       <div className={`text-2xl font-extrabold ${color}`}>{value}</div>
-      <div className="text-[10px] tracking-widest text-muted mt-1">{label}</div>
+      <div className="text-[11px] tracking-widest text-muted mt-1">{label}</div>
     </div>
   );
 }
