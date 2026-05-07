@@ -91,9 +91,9 @@ export function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Sayfa veya görev ara..."
-            className="flex-1 bg-transparent text-sm text-ink placeholder:text-muted/40 outline-none"
+            className="flex-1 bg-transparent text-sm text-ink placeholder:text-muted/70 outline-none"
           />
-          <kbd className="px-2 py-0.5 bg-navy-700 border border-border/40 rounded text-[10px] text-muted font-mono">ESC</kbd>
+          <kbd className="px-2 py-0.5 bg-navy-700 border border-border/40 rounded text-[11px] text-muted font-mono">ESC</kbd>
         </div>
         <div className="max-h-[300px] overflow-y-auto py-2">
           {commands.length === 0 ? (
@@ -120,7 +120,7 @@ export function CommandPalette() {
             ))
           )}
         </div>
-        <div className="px-5 py-2.5 border-t border-border/40 flex items-center gap-4 text-[10px] text-muted/50">
+        <div className="px-5 py-2.5 border-t border-border/40 flex items-center gap-4 text-[11px] text-muted/70">
           <span><kbd className="font-mono">↑↓</kbd> gezin</span>
           <span><kbd className="font-mono">Enter</kbd> seç</span>
           <span><kbd className="font-mono">Esc</kbd> kapat</span>

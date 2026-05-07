@@ -71,7 +71,7 @@ export function NotificationPanel({ onClose }: { onClose: () => void }) {
                 {n.message && (
                   <p className="text-xs text-muted mt-0.5 truncate">{n.message}</p>
                 )}
-                <p className="text-[11px] text-muted/60 mt-1">{formatRelativeDate(n.created_at)}</p>
+                <p className="text-[11px] text-muted/80 mt-1">{formatRelativeDate(n.created_at)}</p>
               </div>
               {!n.read && <div className="w-2 h-2 rounded-full bg-brand-bright shrink-0 mt-2" />}
             </button>

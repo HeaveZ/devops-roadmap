@@ -25,7 +25,7 @@ export function CommentList({ task }: Props) {
       <div className="text-xs uppercase tracking-wider text-muted mb-3">Yorumlar</div>
 
       {comments.length === 0 && (
-        <div className="text-xs text-muted/60 italic mb-3">Henuz yorum yok</div>
+        <div className="text-xs text-muted italic mb-3">Henuz yorum yok</div>
       )}
 
       <div className="flex flex-col gap-3">
@@ -38,14 +38,14 @@ export function CommentList({ task }: Props) {
                 size="sm"
               />
               <span className="text-xs font-semibold text-ink">{c.author || 'Anonim'}</span>
-              <span className="text-[10px] text-muted ml-auto">
+              <span className="text-[11px] text-muted ml-auto">
                 {formatFullDate(c.created_at)}
               </span>
               {isAuthenticated && c.author === user?.email && (
                 <button
                   type="button"
                   onClick={() => del.mutate({ commentId: c.id, taskId: task.id })}
-                  className="text-muted hover:text-status-red text-sm w-5 h-5"
+                  className="text-muted hover:text-status-red text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-status-red/10"
                   title="Sil"
                 >
                   ×

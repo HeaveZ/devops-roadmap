@@ -61,7 +61,7 @@ export function BurndownChart() {
     return (
       <div className="bg-navy-800/80 border border-border/60 rounded-2xl p-5">
         <div className="text-xs font-semibold uppercase tracking-widest text-muted mb-4">Burndown Chart</div>
-        <div className="py-12 text-center text-muted/50 text-sm">Aktif sprint yok</div>
+        <div className="py-12 text-center text-muted text-sm">Aktif sprint yok</div>
       </div>
     );
   }
@@ -74,20 +74,20 @@ export function BurndownChart() {
       </div>
       <div className="h-64">
         {data.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted/50 text-sm">Tarih bilgisi eksik</div>
+          <div className="flex items-center justify-center h-full text-muted text-sm">Tarih bilgisi eksik</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{
                   background: '#111827',
                   border: '1px solid #1e293b',
                   borderRadius: '12px',
                   fontSize: '13px',
-                  color: '#f1f5f9',
+                  color: '#ffffff',
                 }}
               />
               <Line type="monotone" dataKey="ideal" stroke="#4f46e5" strokeDasharray="5 5" strokeWidth={2} dot={false} name="Ideal" />
