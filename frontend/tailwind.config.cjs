@@ -66,11 +66,16 @@ module.exports = {
           from: { opacity: '0', transform: 'translateX(-8px)' },
           to: { opacity: '1', transform: 'translateX(0)' },
         },
+        slideRight: {
+          from: { transform: 'translateX(-100%)' },
+          to: { transform: 'translateX(0)' },
+        },
       },
       animation: {
         popIn: 'popIn 0.25s cubic-bezier(0.16,1,0.3,1)',
         fadeIn: 'fadeIn 0.2s ease',
         slideIn: 'slideIn 0.3s ease',
+        slideRight: 'slideRight 0.25s cubic-bezier(0.16,1,0.3,1)',
       },
       backgroundImage: {
         'brand-gradient': 'linear-gradient(135deg, #4f46e5, #6366f1, #818cf8)',

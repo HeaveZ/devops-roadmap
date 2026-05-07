@@ -7,6 +7,7 @@ import { useTasks } from 'features/tasks/hooks/useTasks';
 import { useUpdateTask } from 'features/tasks/hooks/useTaskMutations';
 import { getTaskTitle, getSection } from 'features/tasks/utils/grouping';
 import { getPriorityInfo } from 'features/tasks/utils/priority';
+import { getTaskCode } from 'features/tasks/utils/sla';
 import { useToast } from 'shared/ui/Toast';
 import { Spinner } from 'shared/ui/Spinner';
 import { EmptyState } from 'shared/ui/EmptyState';
@@ -195,6 +196,9 @@ function KanbanCard({ task, index, onNavigate }: { task: Task; index: number; on
             </div>
           )}
 
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[9px] font-mono text-brand-bright/50">{getTaskCode(task)}</span>
+          </div>
           <p className="text-sm font-medium text-ink mb-2.5">
             {getTaskTitle(task)}
           </p>

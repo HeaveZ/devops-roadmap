@@ -9,6 +9,7 @@ import { Button } from 'shared/ui/Button';
 import { useUpdateTask, useDeleteTask } from '../hooks/useTaskMutations';
 import { getNextPriority } from '../utils/priority';
 import { getTaskTitle } from '../utils/grouping';
+import { getTaskCode, getSlaStatus } from '../utils/sla';
 import type { PriorityKey, Task, TaskStatus } from '../types';
 import { PriorityBadge } from './PriorityBadge';
 import { LevelBadge } from './LevelBadge';
@@ -74,6 +75,9 @@ export function TaskItem({ task }: Props) {
   };
 
   const statusInfo = STATUS_OPTIONS.find((s) => s.value === currentStatus) || STATUS_OPTIONS[0];
+  const sla = getSlaStatus(task);
+  const isOverdue = sla === 'overdue';
+  const isWarning = sla === 'warning';
 
   return (
     <div className="group">
@@ -104,11 +108,22 @@ export function TaskItem({ task }: Props) {
           type="button"
           onClick={() => navigate(`/tasks/${task.id}`)}
           className={cn(
-            'flex-1 text-sm text-left hover:text-brand-bright transition-colors',
+            'flex-1 text-sm text-left hover:text-brand-bright transition-colors flex items-center gap-2',
             task.completed ? 'line-through text-muted' : 'text-ink',
           )}
         >
-          {getTaskTitle(task)}
+          <span className="text-[10px] text-brand-bright/60 font-mono shrink-0">{getTaskCode(task)}</span>
+          <span className="truncate">{getTaskTitle(task)}</span>
+          {isOverdue && (
+            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-status-red/15 text-status-red border border-status-red/30">
+              GECIKTI
+            </span>
+          )}
+          {isWarning && (
+            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-status-amber/15 text-status-amber border border-status-amber/30">
+              SLA
+            </span>
+          )}
         </button>
 
         {subtasks.length > 0 && (

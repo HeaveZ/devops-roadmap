@@ -7,6 +7,7 @@ import { useCreateTask } from '../hooks/useCreateTask';
 import { useSprints } from '../hooks/useSprints';
 import { getSection } from '../utils/grouping';
 import { PRIORITIES } from '../utils/priority';
+import { getTemplates, type TaskTemplate } from '../utils/templates';
 
 export function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('');
@@ -20,6 +21,15 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
   const { data: sprints = [] } = useSprints();
   const createTask = useCreateTask();
   const toast = useToast();
+
+  const templates = getTemplates();
+
+  const applyTemplate = (tpl: TaskTemplate) => {
+    setTitle(tpl.title);
+    setDescription(tpl.description);
+    setPriority(tpl.priority);
+    if (tpl.section) setSection(tpl.section);
+  };
 
   const existingSections = useMemo(
     () => [...new Set(tasks.map((t) => getSection(t)))],
@@ -51,9 +61,23 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
   return (
     <div className="bg-navy-800 border border-border rounded-xl p-5 mb-5 animate-fadeIn">
       <div className="flex flex-col gap-3">
+        {/* Template selector */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] text-muted uppercase tracking-wider">Sablon:</span>
+          {templates.map((tpl) => (
+            <button
+              key={tpl.id}
+              type="button"
+              onClick={() => applyTemplate(tpl)}
+              className="px-2.5 py-1 text-[11px] rounded-md border border-border/60 text-muted hover:text-ink hover:border-brand/40 hover:bg-brand/10 transition-colors"
+            >
+              {tpl.name}
+            </button>
+          ))}
+        </div>
         <input
           type="text"
-          placeholder="Görev başlığı..."
+          placeholder="Gorev basligi..."
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
