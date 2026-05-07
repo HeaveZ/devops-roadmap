@@ -89,9 +89,9 @@ pipeline {
 
         // ------------------------------------------------------
         // 2) INSTALL DEPENDENCIES — parallel (5 services)
-        // Each service runs npm ci in parallel on its own node inside a
-        // node:20-alpine container. Uses collectEntries for parallel
-        // branches instead of the old sequential for-loop.
+        // Each service runs npm ci in its own shared workspace.
+        // Lint and Audit stages reuse the same ws() path so
+        // node_modules persists on disk — no duplicate npm ci.
         // ------------------------------------------------------
         stage('Install Dependencies') {
             agent none
@@ -101,7 +101,7 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                ws("workspace/${env.JOB_NAME}-install-${svc}-${env.BUILD_NUMBER}") {
+                                ws("workspace/${env.JOB_NAME}-quality-${svc}-${env.BUILD_NUMBER}") {
                                     unstash 'workspace'
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
@@ -120,10 +120,8 @@ pipeline {
 
         // ------------------------------------------------------
         // 3) LINT & COMPILE CHECK — parallel (5 services)
-        // Due to stash logic, each parallel branch gets a fresh workspace
-        // (no node_modules), so npm ci runs again before lint.
-        // Since all 5 services run in parallel, the extra npm ci has
-        // negligible impact on wall-clock time.
+        // Reuses the same ws() path from Install stage so
+        // node_modules is already present — no npm ci needed.
         // ------------------------------------------------------
         stage('Lint & Compile Check') {
             agent none
@@ -133,12 +131,10 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                ws("workspace/${env.JOB_NAME}-lint-${svc}-${env.BUILD_NUMBER}") {
-                                    unstash 'workspace'
+                                ws("workspace/${env.JOB_NAME}-quality-${svc}-${env.BUILD_NUMBER}") {
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
                                             echo "[START] ${svc} lint and syntax check"
-                                            sh 'npm ci'
                                             sh 'npm run lint || echo "lint script not found — skipped"'
                                             echo "[DONE] ${svc} lint/syntax OK"
                                         }
@@ -154,7 +150,7 @@ pipeline {
         // ------------------------------------------------------
         // 4) DEPENDENCY SCAN — parallel (5 services)
         // npm audit --audit-level=high → fails if high+ CVEs exist.
-        // Like the Lint stage, npm ci runs again due to fresh workspace.
+        // Reuses the same ws() path — node_modules already installed.
         // ------------------------------------------------------
         stage('Dependency Scan') {
             agent none
@@ -164,12 +160,10 @@ pipeline {
                     parallel NODE_SERVICES.split(',').collectEntries { svc ->
                         ["${svc}": {
                             node('built-in') {
-                                ws("workspace/${env.JOB_NAME}-audit-${svc}-${env.BUILD_NUMBER}") {
-                                    unstash 'workspace'
+                                ws("workspace/${env.JOB_NAME}-quality-${svc}-${env.BUILD_NUMBER}") {
                                     docker.image('node:20-alpine').inside {
                                         dir(svc) {
                                             echo "[START] ${svc} dependency scan (npm audit, high+)"
-                                            sh 'npm ci'
                                             sh 'npm audit --audit-level=high'
                                             echo "[DONE] ${svc} dependency scan clean"
                                         }
