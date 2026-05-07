@@ -81,7 +81,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50"
+          className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30"
           autoFocus
         />
         <textarea
@@ -89,7 +89,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50 resize-y"
+          className="w-full px-4 py-2.5 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30 resize-y"
         />
         <div className="flex gap-3">
           <select
@@ -110,7 +110,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
             value={section}
             onChange={(e) => setSection(e.target.value)}
             className={cn(
-              'flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50',
+              'flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30',
             )}
           />
         </div>
@@ -143,7 +143,7 @@ export function CreateTaskForm({ onClose }: { onClose: () => void }) {
             placeholder="Atanan kişi (email)..."
             value={assignee}
             onChange={(e) => setAssignee(e.target.value)}
-            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50"
+            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30"
           />
           <input
             type="date"

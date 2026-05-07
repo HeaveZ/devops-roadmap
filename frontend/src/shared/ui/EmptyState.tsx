@@ -10,7 +10,7 @@ export function EmptyState({ children, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        'text-muted/50 text-sm py-16 text-center border border-dashed border-border/40 rounded-2xl bg-navy-800/30',
+        'text-muted text-sm py-16 text-center border border-dashed border-border/50 rounded-2xl bg-navy-800/30',
         className,
       )}
     >

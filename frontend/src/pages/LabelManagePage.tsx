@@ -46,7 +46,7 @@ export function LabelManagePage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50"
+            className="flex-1 px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30"
           />
           <input
             type="color"

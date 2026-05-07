@@ -62,7 +62,7 @@ export function SubtaskList({ task }: Props) {
               type="button"
               onClick={() => del.mutate({ subtaskId: st.id, taskId: task.id })}
               title="Sil"
-              className="text-muted hover:text-status-red text-sm w-6 h-6"
+              className="text-muted hover:text-status-red text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-status-red/10"
             >
               ×
             </button>

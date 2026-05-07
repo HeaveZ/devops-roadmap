@@ -268,7 +268,7 @@ export function TaskDetailPage() {
               defaultValue={task.assignee_email || ''}
               onBlur={(e) => handleUpdate({ assignee_email: e.target.value || null })}
               disabled={!isAuthenticated}
-              className="w-full px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/50 focus:outline-none focus:border-brand/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 bg-navy-900 border border-border rounded-lg text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:border-brand/50 focus:ring-1 focus:ring-brand/30 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </SidebarCard>
 
