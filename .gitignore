@@ -1,6 +1,7 @@
 .env
 .env.save
 .env.local
+docker-stack.rendered.yml
 build.log
 node_modules/
 .DS_Store
