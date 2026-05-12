@@ -413,25 +413,28 @@ pipeline {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-deploy-${env.BUILD_NUMBER}") {
                             unstash 'workspace'
-                            echo "[START] Production deploy — TAG=${IMMUTABLE_TAG} (immutable)"
+                            echo "[BAŞLA] Production deploy (Swarm) — TAG=${IMMUTABLE_TAG}"
                             withCredentials([file(credentialsId: 'taskly-env-prod', variable: 'ENV_FILE')]) {
                                 sh """
                                     set -e
-                                    # If a previous build failed, .env may remain in the workspace
-                                    # with a different uid; clean first, then create.
-                                    # Run cleanup in all cases (trap).
-                                    trap 'rm -f .env' EXIT
-                                    rm -f .env
+                                    # Cleanup: hem .env hem render edilmiş stack dosyası
+                                    trap 'rm -f .env docker-stack.rendered.yml' EXIT
+                                    rm -f .env docker-stack.rendered.yml
                                     install -m 600 "\$ENV_FILE" .env
-                                    # Inject TAG env var into compose — each build uses a different
-                                    # immutable tag, changing image IDs so compose recreates containers.
-                                    # --pull always makes GHCR the source of truth, bypassing local cache.
-                                    export TAG=${IMMUTABLE_TAG}
-                                    docker compose -f docker-compose.prod.yml pull
-                                    docker compose -f docker-compose.prod.yml up -d --pull always
+                                    # TAG'i .env'e ekle ki envsubst resolve etsin
+                                    echo "TAG=${IMMUTABLE_TAG}" >> .env
+                                    # Template'i render et
+                                    set -a; . ./.env; set +a
+                                    envsubst < docker-stack.yml > docker-stack.rendered.yml
+                                    # Swarm deploy
+                                    docker stack deploy \\
+                                      --compose-file docker-stack.rendered.yml \\
+                                      --with-registry-auth \\
+                                      --prune \\
+                                      taskly
                                 """
                             }
-                            echo "[DONE] Production deploy completed (TAG=${IMMUTABLE_TAG})"
+                            echo "[BİTİŞ] Production deploy tamamlandı (TAG=${IMMUTABLE_TAG})"
                         }
                     }
                 }
@@ -440,9 +443,9 @@ pipeline {
 
         // ------------------------------------------------------
         // 9) SMOKE TEST (master only) — built-in
-        // After deploy, probes the /health endpoint of 6 services from
-        // inside the compose network, then from the public endpoint.
-        // 15s warm-up; if any probe fails, the stage fails.
+        // Post-deploy Swarm convergence wait, ardindan iç servisleri
+        // taskly-overlay üstünde geçici curl container ile, son olarak
+        // public uçtan ingress mesh üzerinden probe eder.
         // ------------------------------------------------------
         stage('Smoke Test') {
             agent none
@@ -451,26 +454,44 @@ pipeline {
                 script {
                     node('built-in') {
                         ws("workspace/${env.JOB_NAME}-smoke-${env.BUILD_NUMBER}") {
-                            echo "[START] Smoke test — post-deploy health probe"
-                            sleep 15
+                            echo "[BAŞLA] Smoke test — post-deploy health probe (Swarm)"
                             sh '''
                                 set -e
-                                echo "--> Internal health (compose network via taskly-nginx-1)"
-                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://auth-server:3001/health
-                                echo ""
-                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://task-manager:5000/health
-                                echo ""
-                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://email-sender:3002/health
-                                echo ""
-                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://audit-logger:8080/health
-                                echo ""
-                                docker exec taskly-nginx-1 wget -q -T 5 -O - http://frontend:80/health
-                                echo ""
-                                echo "--> Public endpoint (Cloudflare -> origin)"
+                                echo "--> Swarm convergence wait (max 60s)"
+                                for i in $(seq 1 12); do
+                                  TOTAL=$(docker service ls --filter name=taskly_ --format "{{.Replicas}}" | wc -l)
+                                  READY=$(docker service ls --filter name=taskly_ --format "{{.Replicas}}" | grep -c "^1/1$" || true)
+                                  echo "  tick $i: ${READY}/${TOTAL} services 1/1"
+                                  if [ "$READY" = "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
+                                    echo "All ${TOTAL} services converged."
+                                    break
+                                  fi
+                                  sleep 5
+                                done
+
+                                echo "--> Public health (ingress mesh via Cloudflare)"
                                 curl -fsS --max-time 10 https://heavezz.uk/health
                                 echo ""
+
+                                echo "--> Internal service health via temporary container on taskly-overlay"
+                                for endpoint in \\
+                                  "auth-server:3001/health" \\
+                                  "task-manager:5000/health" \\
+                                  "email-sender:3002/health" \\
+                                  "audit-logger:8080/health" \\
+                                  "frontend:80/health"
+                                do
+                                  echo -n "  [${endpoint}] "
+                                  docker run --rm --network taskly-overlay \\
+                                    curlimages/curl:latest \\
+                                    -fsS --max-time 5 "http://${endpoint}" \\
+                                    > /dev/null && echo "OK" || (echo "FAIL"; exit 1)
+                                done
+
+                                echo "--> Public root"
+                                curl -fsS --max-time 10 https://heavezz.uk/ -o /dev/null -w "HTTP %{http_code}\\n"
                             '''
-                            echo "[DONE] Smoke test passed — 5 internal + 1 public endpoint healthy"
+                            echo "[BİTİŞ] Smoke test başarılı — Swarm convergence + 5 internal + 2 public uç sağlıklı"
                         }
                     }
                 }
