@@ -423,8 +423,19 @@ pipeline {
                                     install -m 600 "\$ENV_FILE" .env
                                     # TAG'i .env'e ekle ki envsubst resolve etsin
                                     echo "TAG=${IMMUTABLE_TAG}" >> .env
-                                    # Template'i render et
-                                    set -a; . ./.env; set +a
+                                    # .env parse: 'set -a; . ./.env' yerine while-read loop kullan.
+                                    # Sebep: POSIX sh source, deger icinde acilmamis tirnak (',\")
+                                    # gorunce 'Unterminated quoted string' verir. while-read literal okur.
+                                    set -a
+                                    while IFS='=' read -r k v || [ -n "\$k" ]; do
+                                      case "\$k" in ''|\\#*) continue ;; esac
+                                      case "\$v" in
+                                        \\"*\\") v=\${v#\\"}; v=\${v%\\"} ;;
+                                        \\'*\\') v=\${v#\\'}; v=\${v%\\'} ;;
+                                      esac
+                                      export "\${k}=\${v}"
+                                    done < .env
+                                    set +a
                                     envsubst < docker-stack.yml > docker-stack.rendered.yml
                                     # Swarm deploy
                                     docker stack deploy \\
