@@ -421,8 +421,13 @@ pipeline {
                                     trap 'rm -f .env docker-stack.rendered.yml' EXIT
                                     rm -f .env docker-stack.rendered.yml
                                     install -m 600 "\$ENV_FILE" .env
-                                    # TAG'i .env'e ekle ki envsubst resolve etsin
-                                    echo "TAG=${IMMUTABLE_TAG}" >> .env
+                                    # TAG'i .env'e ekle: printf ile leading \\n sok ki
+                                    # secret file trailing newline ile bitmiyorsa son satira yapismasin.
+                                    printf '\\nTAG=%s\\n' "${IMMUTABLE_TAG}" >> .env
+                                    # SENSITIVE: env loading + envsubst'u xtrace'ten gizle, secret'lar
+                                    # build log'una sizmasin. (POSIX sh source/while-read her ikisi de
+                                    # 'set -x' altinda her export'u trace ederdi.)
+                                    set +x
                                     # .env parse: 'set -a; . ./.env' yerine while-read loop kullan.
                                     # Sebep: POSIX sh source, deger icinde acilmamis tirnak (',\")
                                     # gorunce 'Unterminated quoted string' verir. while-read literal okur.
@@ -437,6 +442,7 @@ pipeline {
                                     done < .env
                                     set +a
                                     envsubst < docker-stack.yml > docker-stack.rendered.yml
+                                    set -x
                                     # Swarm deploy
                                     docker stack deploy \\
                                       --compose-file docker-stack.rendered.yml \\
